@@ -45,7 +45,9 @@ n_classes = 2 # MNIST total classes (0-9 digits)
 dropout = 0.75 # Dropout, probability to keep units
 
 
-train_amount = 48000        
+train_amount = 20000
+
+epochs = 1
 
 batch_size = 200
 eval_batch_size = 200
@@ -117,23 +119,29 @@ biases = {
     'out': tf.Variable(tf.random_normal([n_classes]))
 }
 
-def input_data(start_index, amount):
+def input_data(start_index, amount, shuffle):
     
     data_folder = '/media/sf_vb-shared/data/'
         
     folder_map = tf.constant(['a', 'b'])
     label_map = tf.constant([ [0.0, 1.0], [1.0, 0.0] ])
     
-    range_queue = tf.train.range_input_producer(int(amount*n_classes), shuffle = True)
+    range_queue = tf.train.range_input_producer(amount, shuffle = shuffle)
 
     range_value = range_queue.dequeue()
+
+#    if shuffle == False:
+#    if shuffle == True:
+#       range_value = tf.Print(range_value, [range_value], message = "rv: ")            
+
         
-    class_index = tf.div(range_value, tf.constant(int(amount)))
+    per_class = int(amount / n_classes)
+    class_index = tf.div(range_value, tf.constant(per_class))
                
     label = tf.gather(label_map, class_index)
     folder = tf.gather(folder_map, class_index)
     
-    relative_index = tf.mod(range_value, tf.constant(int(amount)))
+    relative_index = tf.mod(range_value, tf.constant(per_class))
         
     abs_index = tf.add(relative_index, tf.constant(start_index))
     
@@ -158,7 +166,7 @@ def input_data(start_index, amount):
     
     return data, label
             
-x, y = input_data(0, train_amount)
+x, y = input_data(0, train_amount, shuffle = True)
 
 x.set_shape([image_height * image_width])
 y.set_shape([n_classes])
@@ -174,7 +182,7 @@ optimizer = tf.train.AdamOptimizer(learning_rate = learning_rate).minimize(cost)
 
 # Define evaluation pipeline
 
-x1, y1 = input_data(train_amount, eval_batch_size)
+x1, y1 = input_data(int(train_amount / n_classes), eval_batch_size, shuffle = False)
 x1.set_shape([image_height * image_width])
 y1.set_shape([n_classes])
 
@@ -187,11 +195,14 @@ def test_accuracy():
     acc = sess.run(accuracy, feed_dict = {keep_prob: 1.0} )    
     print("Testing Accuracy:", acc )    
 
+# the end of graph construction
+
+sess = tf.Session()
+
+train_writer = tf.train.SummaryWriter('./train',  sess.graph)
+
 # Initializing the variables
 init = tf.initialize_all_variables()
-
-# Launch the graph
-sess = tf.Session()
     
 sess.run(init)
 
@@ -201,7 +212,7 @@ threads = tf.train.start_queue_runners(sess = sess, coord = coord)
 
 # todo : print out 'batch loss'
 
-iterations = int(train_amount / batch_size)
+iterations = max(1, int(train_amount / batch_size)) * epochs
 
 for i in range(iterations):
     sess.run(optimizer, feed_dict = {keep_prob: dropout} )
@@ -209,6 +220,8 @@ for i in range(iterations):
     # if i % 10 == 0:
     test_accuracy()
                     
+test_accuracy()
+test_accuracy()
 test_accuracy()
     
 coord.request_stop()
