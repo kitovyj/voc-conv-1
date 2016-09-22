@@ -29,6 +29,12 @@ https://ischlag.github.io/2016/06/03/simple-neural-network-in-tensorflow/
 here is the best explanation of how tf works:
 https://ischlag.github.io/2016/06/19/tensorflow-input-pipeline-example/
 
+how to visualize weights:
+
+http://stackoverflow.com/questions/33783672/how-can-i-visualize-the-weightsvariables-in-cnn-in-tensorflow
+https://www.snip2code.com/Snippet/1104315/Tensorflow---visualize-convolutional-fea
+
+
 '''
 
 import tensorflow as tf
@@ -45,7 +51,7 @@ n_classes = 2 # MNIST total classes (0-9 digits)
 dropout = 0.75 # Dropout, probability to keep units
 
 
-train_amount = 20000
+train_amount = 90000
 
 epochs = 1
 
@@ -103,8 +109,11 @@ def conv_net(x, weights, biases, dropout):
 weights = {
     # 5x5 conv, 1 input, 32 outputs
     'wc1': tf.Variable(tf.random_normal([5, 5, 1, 32])),
+    #'wc1': tf.Variable(tf.random_normal([12, 12, 1, 32])),
+    #'wc1': tf.Variable(tf.zeros([5, 5, 1, 32])),
     # 5x5 conv, 32 inputs, 64 outputs
     'wc2': tf.Variable(tf.random_normal([5, 5, 32, 64])),
+    #'wc2': tf.Variable(tf.random_normal([12, 12, 32, 64])),
     # fully connected, 7*7*64 inputs, 1024 outputs
     #'wd1': tf.Variable(tf.random_normal([7*7*64, 1024])),
     'wd1': tf.Variable(tf.random_normal([int((image_width / 4) * (image_height / 4) * 64), 1024])),
@@ -118,7 +127,7 @@ biases = {
     'bd1': tf.Variable(tf.random_normal([1024])),
     'out': tf.Variable(tf.random_normal([n_classes]))
 }
-
+    
 def input_data(start_index, amount, shuffle):
     
     data_folder = '/media/sf_vb-shared/data/'
@@ -165,6 +174,113 @@ def input_data(start_index, amount, shuffle):
     data = tf.to_float(data)
     
     return data, label
+
+def put_kernels_on_grid (kernel, grid_Y, grid_X, pad = 1):
+    
+    '''Visualize conv. features as an image (mostly for the 1st layer).
+    Place kernel into a grid, with some paddings between adjacent filters.
+
+    Args:
+      kernel:            tensor of shape [Y, X, NumChannels, NumKernels]
+      (grid_Y, grid_X):  shape of the grid. Require: NumKernels == grid_Y * grid_X
+                           User is responsible of how to break into two multiples.
+      pad:               number of black pixels around each filter (between them)
+    
+    Return:
+      Tensor of shape [(Y+2*pad)*grid_Y, (X+2*pad)*grid_X, NumChannels, 1].
+    '''
+    
+    x_min = tf.reduce_min(kernel)
+    x_max = tf.reduce_max(kernel)
+    
+    #x_min = tf.Print(x_min, [x_min], message = "x_min: ")            
+    #x_max = tf.Print(x_max, [x_max], message = "x_max: ")
+    
+    kernel1 = (kernel - x_min) / (x_max - x_min)
+    
+    # pad X and Y
+    x1 = tf.pad(kernel1, tf.constant( [[pad,pad],[pad, pad],[0,0],[0,0]] ), mode = 'CONSTANT')
+
+    # X and Y dimensions, w.r.t. padding
+    Y = kernel1.get_shape()[0] + 2 * pad
+    X = kernel1.get_shape()[1] + 2 * pad
+    
+    channels = kernel1.get_shape()[2]
+
+    # put NumKernels to the 1st dimension
+    x2 = tf.transpose(x1, (3, 0, 1, 2))
+    # organize grid on Y axis
+    x3 = tf.reshape(x2, tf.pack([grid_X, Y * grid_Y, X, channels])) #3
+    
+    # switch X and Y axes
+    x4 = tf.transpose(x3, (0, 2, 1, 3))
+    # organize grid on X axis
+    x5 = tf.reshape(x4, tf.pack([1, X * grid_X, Y * grid_Y, channels])) #3
+    
+    # back to normal order (not combining with the next step for clarity)
+    x6 = tf.transpose(x5, (2, 1, 3, 0))
+
+    # to tf.image_summary order [batch_size, height, width, channels],
+    #   where in this case batch_size == 1
+    x7 = tf.transpose(x6, (3, 0, 1, 2))
+
+    # scale to [0, 1]
+    #x_min = tf.reduce_min(x7)
+    #x_max = tf.reduce_max(x7)
+    
+    #x_min = tf.Print(x_min, [x_min], message = "x_min: ")            
+    #x_max = tf.Print(x_max, [x_max], message = "x_max: ")
+    
+    #x8 = (x7 - x_min) / (x_max - x_min)
+
+    #x8 = tf.Print(x8, [x8], message = "x8: ")
+
+    # scale to [0, 255] and convert to uint8
+    return tf.image.convert_image_dtype(x7, dtype = tf.uint8)
+
+def put_averaged_kernels_on_grid (kernel, grid_Y, grid_X, pad = 1):
+
+    print(kernel.get_shape())
+        
+    averaged = tf.reduce_mean(kernel, 2, keep_dims = True)
+
+    shape = tf.shape(averaged);
+    averaged = tf.Print(averaged, [shape], message = "shape: ")            
+        
+    x_min = tf.reduce_min(averaged)
+    x_max = tf.reduce_max(averaged)
+    
+    kernel1 = (averaged - x_min) / (x_max - x_min)
+    
+    # pad X and Y
+    x1 = tf.pad(kernel1, tf.constant( [[pad,pad],[pad, pad],[0,0],[0,0]] ), mode = 'CONSTANT')
+
+    # X and Y dimensions, w.r.t. padding
+    Y = kernel1.get_shape()[0] + 2 * pad
+    X = kernel1.get_shape()[1] + 2 * pad
+    
+    channels = kernel1.get_shape()[2]
+
+    # put NumKernels to the 1st dimension
+    x2 = tf.transpose(x1, (3, 0, 1, 2))
+    # organize grid on Y axis
+    x3 = tf.reshape(x2, tf.pack([grid_X, Y * grid_Y, X, channels])) #3
+    
+    # switch X and Y axes
+    x4 = tf.transpose(x3, (0, 2, 1, 3))
+    # organize grid on X axis
+    x5 = tf.reshape(x4, tf.pack([1, X * grid_X, Y * grid_Y, channels])) #3
+    
+    # back to normal order (not combining with the next step for clarity)
+    x6 = tf.transpose(x5, (2, 1, 3, 0))
+
+    # to tf.image_summary order [batch_size, height, width, channels],
+    #   where in this case batch_size == 1
+    x7 = tf.transpose(x6, (3, 0, 1, 2))
+
+    # scale to [0, 255] and convert to uint8
+    return tf.image.convert_image_dtype(x7, dtype = tf.uint8)
+
             
 x, y = input_data(0, train_amount, shuffle = True)
 
@@ -195,6 +311,10 @@ def test_accuracy():
     acc = sess.run(accuracy, feed_dict = {keep_prob: 1.0} )    
     print("Testing Accuracy:", acc )    
 
+
+#grid = put_kernels_on_grid (weights['wc1'], grid_Y = 4, grid_X = 8)
+grid = put_kernels_on_grid (weights['wc2'], grid_Y = 8, grid_X = 8)
+
 # the end of graph construction
 
 sess = tf.Session()
@@ -215,13 +335,16 @@ threads = tf.train.start_queue_runners(sess = sess, coord = coord)
 iterations = max(1, int(train_amount / batch_size)) * epochs
 
 for i in range(iterations):
-    sess.run(optimizer, feed_dict = {keep_prob: dropout} )
+
+    wc1_summary = tf.image_summary('conv1/features'+ str(i), grid, max_images = 1)
+
+    _, summary = sess.run([optimizer, wc1_summary], feed_dict = {keep_prob: dropout} )
     print((i * 100) / iterations, "% done" )    
     # if i % 10 == 0:
     test_accuracy()
+        
+    train_writer.add_summary(summary)
                     
-test_accuracy()
-test_accuracy()
 test_accuracy()
     
 coord.request_stop()
