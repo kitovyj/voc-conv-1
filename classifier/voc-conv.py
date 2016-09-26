@@ -34,10 +34,14 @@ how to visualize weights:
 http://stackoverflow.com/questions/33783672/how-can-i-visualize-the-weightsvariables-in-cnn-in-tensorflow
 https://www.snip2code.com/Snippet/1104315/Tensorflow---visualize-convolutional-fea
 
+softmax_cross_entropy_with_logits and sparce_softmax_cross_entropy_with_logits diference:
+http://stackoverflow.com/questions/37312421/tensorflow-whats-the-difference-between-sparse-softmax-cross-entropy-with-logi
 
 '''
 
+import numpy
 import tensorflow as tf
+import tf_visualization
 
 # Parameters
 learning_rate = 0.001
@@ -174,113 +178,6 @@ def input_data(start_index, amount, shuffle):
     data = tf.to_float(data)
     
     return data, label
-
-def put_kernels_on_grid (kernel, grid_Y, grid_X, pad = 1):
-    
-    '''Visualize conv. features as an image (mostly for the 1st layer).
-    Place kernel into a grid, with some paddings between adjacent filters.
-
-    Args:
-      kernel:            tensor of shape [Y, X, NumChannels, NumKernels]
-      (grid_Y, grid_X):  shape of the grid. Require: NumKernels == grid_Y * grid_X
-                           User is responsible of how to break into two multiples.
-      pad:               number of black pixels around each filter (between them)
-    
-    Return:
-      Tensor of shape [(Y+2*pad)*grid_Y, (X+2*pad)*grid_X, NumChannels, 1].
-    '''
-    
-    x_min = tf.reduce_min(kernel)
-    x_max = tf.reduce_max(kernel)
-    
-    #x_min = tf.Print(x_min, [x_min], message = "x_min: ")            
-    #x_max = tf.Print(x_max, [x_max], message = "x_max: ")
-    
-    kernel1 = (kernel - x_min) / (x_max - x_min)
-    
-    # pad X and Y
-    x1 = tf.pad(kernel1, tf.constant( [[pad,pad],[pad, pad],[0,0],[0,0]] ), mode = 'CONSTANT')
-
-    # X and Y dimensions, w.r.t. padding
-    Y = kernel1.get_shape()[0] + 2 * pad
-    X = kernel1.get_shape()[1] + 2 * pad
-    
-    channels = kernel1.get_shape()[2]
-
-    # put NumKernels to the 1st dimension
-    x2 = tf.transpose(x1, (3, 0, 1, 2))
-    # organize grid on Y axis
-    x3 = tf.reshape(x2, tf.pack([grid_X, Y * grid_Y, X, channels])) #3
-    
-    # switch X and Y axes
-    x4 = tf.transpose(x3, (0, 2, 1, 3))
-    # organize grid on X axis
-    x5 = tf.reshape(x4, tf.pack([1, X * grid_X, Y * grid_Y, channels])) #3
-    
-    # back to normal order (not combining with the next step for clarity)
-    x6 = tf.transpose(x5, (2, 1, 3, 0))
-
-    # to tf.image_summary order [batch_size, height, width, channels],
-    #   where in this case batch_size == 1
-    x7 = tf.transpose(x6, (3, 0, 1, 2))
-
-    # scale to [0, 1]
-    #x_min = tf.reduce_min(x7)
-    #x_max = tf.reduce_max(x7)
-    
-    #x_min = tf.Print(x_min, [x_min], message = "x_min: ")            
-    #x_max = tf.Print(x_max, [x_max], message = "x_max: ")
-    
-    #x8 = (x7 - x_min) / (x_max - x_min)
-
-    #x8 = tf.Print(x8, [x8], message = "x8: ")
-
-    # scale to [0, 255] and convert to uint8
-    return tf.image.convert_image_dtype(x7, dtype = tf.uint8)
-
-def put_averaged_kernels_on_grid (kernel, grid_Y, grid_X, pad = 1):
-
-    print(kernel.get_shape())
-        
-    averaged = tf.reduce_mean(kernel, 2, keep_dims = True)
-
-    shape = tf.shape(averaged);
-    averaged = tf.Print(averaged, [shape], message = "shape: ")            
-        
-    x_min = tf.reduce_min(averaged)
-    x_max = tf.reduce_max(averaged)
-    
-    kernel1 = (averaged - x_min) / (x_max - x_min)
-    
-    # pad X and Y
-    x1 = tf.pad(kernel1, tf.constant( [[pad,pad],[pad, pad],[0,0],[0,0]] ), mode = 'CONSTANT')
-
-    # X and Y dimensions, w.r.t. padding
-    Y = kernel1.get_shape()[0] + 2 * pad
-    X = kernel1.get_shape()[1] + 2 * pad
-    
-    channels = kernel1.get_shape()[2]
-
-    # put NumKernels to the 1st dimension
-    x2 = tf.transpose(x1, (3, 0, 1, 2))
-    # organize grid on Y axis
-    x3 = tf.reshape(x2, tf.pack([grid_X, Y * grid_Y, X, channels])) #3
-    
-    # switch X and Y axes
-    x4 = tf.transpose(x3, (0, 2, 1, 3))
-    # organize grid on X axis
-    x5 = tf.reshape(x4, tf.pack([1, X * grid_X, Y * grid_Y, channels])) #3
-    
-    # back to normal order (not combining with the next step for clarity)
-    x6 = tf.transpose(x5, (2, 1, 3, 0))
-
-    # to tf.image_summary order [batch_size, height, width, channels],
-    #   where in this case batch_size == 1
-    x7 = tf.transpose(x6, (3, 0, 1, 2))
-
-    # scale to [0, 255] and convert to uint8
-    return tf.image.convert_image_dtype(x7, dtype = tf.uint8)
-
             
 x, y = input_data(0, train_amount, shuffle = True)
 
@@ -312,8 +209,9 @@ def test_accuracy():
     print("Testing Accuracy:", acc )    
 
 
-#grid = put_kernels_on_grid (weights['wc1'], grid_Y = 4, grid_X = 8)
-grid = put_kernels_on_grid (weights['wc2'], grid_Y = 8, grid_X = 8)
+grid = tf_visualization.put_kernels_on_color_grid (weights['wc1'], grid_Y = 4, grid_X = 8)
+#grid = tf_visualization.put_averaged_kernels_on_grid (weights['wc2'], grid_Y = 8, grid_X = 8)
+#grid = tf_visualization.put_fully_connected_on_grid (weights['wd1'], grid_Y = 25, grid_X = 25)
 
 # the end of graph construction
 
@@ -339,11 +237,25 @@ for i in range(iterations):
     wc1_summary = tf.image_summary('conv1/features'+ str(i), grid, max_images = 1)
 
     _, summary = sess.run([optimizer, wc1_summary], feed_dict = {keep_prob: dropout} )
+    #_ = sess.run([optimizer], feed_dict = {keep_prob: dropout} )
     print((i * 100) / iterations, "% done" )    
-    # if i % 10 == 0:
-    test_accuracy()
+    if i % 10 == 0:
+        test_accuracy()
         
     train_writer.add_summary(summary)
+    
+    '''
+    array = sess.run(weights['wc1'])
+    fname = 'conv' + str(i).zfill(9) + '.csv'
+    numpy.savetxt(fname, array.flatten(), "%10.10f")
+    '''
+    
+    '''
+    array = sess.run(weights['out'])
+    fname = 'out' + str(i).zfill(9) + '.csv'
+    numpy.savetxt(fname, array.flatten(), "%10.10f")
+    '''
+
                     
 test_accuracy()
     
