@@ -37,6 +37,9 @@ https://www.snip2code.com/Snippet/1104315/Tensorflow---visualize-convolutional-f
 softmax_cross_entropy_with_logits and sparce_softmax_cross_entropy_with_logits diference:
 http://stackoverflow.com/questions/37312421/tensorflow-whats-the-difference-between-sparse-softmax-cross-entropy-with-logi
 
+L1 and L2 regularizations explained:
+https://www.quora.com/What-is-the-difference-between-L1-and-L2-regularization
+
 '''
 
 import numpy
@@ -55,11 +58,11 @@ n_classes = 2 # MNIST total classes (0-9 digits)
 dropout = 0.75 # Dropout, probability to keep units
 
 
-train_amount = 90000
+train_amount = 9000
 
 epochs = 1
 
-batch_size = 200
+batch_size = 64
 eval_batch_size = 200
 
 # tf Graph input
@@ -109,29 +112,62 @@ def conv_net(x, weights, biases, dropout):
     out = tf.add(tf.matmul(fc1, weights['out']), biases['out'])
     return out
 
+'''
 # Store layers weight & bias
 weights = {
     # 5x5 conv, 1 input, 32 outputs
-    'wc1': tf.Variable(tf.random_normal([5, 5, 1, 32])),
+    'wc1': tf.Variable(tf.truncated_normal([5, 5, 1, 32], stddev=0.1)),
+    # 5x5 conv, 32 inputs, 64 outputs
+    'wc2': tf.Variable(tf.truncated_normal([5, 5, 32, 64], stddev=0.1)),
+    # fully connected, 7*7*64 inputs, 1024 outputs
+    'wd1': tf.Variable(tf.truncated_normal([7*7*64, 1024], stddev=0.1)),
+    # 1024 inputs, 10 outputs (class prediction)
+    'out': tf.Variable(tf.truncated_normal([1024, n_classes], stddev=0.1))
+}
+'''
+
+
+
+
+biases = {
+    'bc1': tf.Variable(tf.zeros([32])),
+    'bc2': tf.Variable(tf.constant(0.1, shape=[64], dtype=tf.float32)),
+    'bd1': tf.Variable(tf.constant(0.1, shape=[1024])),
+    'out': tf.Variable(tf.constant(0.1, shape=[n_classes]))
+}
+
+
+
+
+# Store layers weight & bias
+weights = {
+    # 5x5 conv, 1 input, 32 outputs
+    'wc1': tf.Variable(tf.truncated_normal([5, 5, 1, 32], stddev=0.1)),
+#    'wc1': tf.Variable(tf.random_normal([5, 5, 1, 32])),
     #'wc1': tf.Variable(tf.random_normal([12, 12, 1, 32])),
     #'wc1': tf.Variable(tf.zeros([5, 5, 1, 32])),
     # 5x5 conv, 32 inputs, 64 outputs
-    'wc2': tf.Variable(tf.random_normal([5, 5, 32, 64])),
+    'wc2': tf.Variable(tf.truncated_normal([5, 5, 32, 64], stddev=0.1)),
+    #'wc2': tf.Variable(tf.random_normal([5, 5, 32, 64])),
     #'wc2': tf.Variable(tf.random_normal([12, 12, 32, 64])),
     # fully connected, 7*7*64 inputs, 1024 outputs
     #'wd1': tf.Variable(tf.random_normal([7*7*64, 1024])),
-    'wd1': tf.Variable(tf.random_normal([int((image_width / 4) * (image_height / 4) * 64), 1024])),
+    'wd1': tf.Variable(tf.truncated_normal([int((image_width / 4) * (image_height / 4) * 64), 1024], stddev=0.1)),
+#    'wd1': tf.Variable(tf.random_normal([int((image_width / 4) * (image_height / 4) * 64), 1024])),
     # 1024 inputs, n_classes outputs (class prediction)
-    'out': tf.Variable(tf.random_normal([1024, n_classes]))
+    #'out': tf.Variable(tf.random_normal([1024, n_classes]))
+    'out': tf.Variable(tf.truncated_normal([1024, n_classes], stddev=0.1))
 }
 
+'''
 biases = {
     'bc1': tf.Variable(tf.random_normal([32])),
     'bc2': tf.Variable(tf.random_normal([64])),
     'bd1': tf.Variable(tf.random_normal([1024])),
     'out': tf.Variable(tf.random_normal([n_classes]))
 }
-    
+'''
+ 
 def input_data(start_index, amount, shuffle):
     
     data_folder = '/media/sf_vb-shared/data/'
@@ -208,10 +244,9 @@ def test_accuracy():
     acc = sess.run(accuracy, feed_dict = {keep_prob: 1.0} )    
     print("Testing Accuracy:", acc )    
 
-
-grid = tf_visualization.put_kernels_on_color_grid (weights['wc1'], grid_Y = 4, grid_X = 8)
-#grid = tf_visualization.put_averaged_kernels_on_grid (weights['wc2'], grid_Y = 8, grid_X = 8)
-#grid = tf_visualization.put_fully_connected_on_grid (weights['wd1'], grid_Y = 25, grid_X = 25)
+#grid = tf_visualization.put_kernels_on_color_grid (weights['wc1'], grid_Y = 4, grid_X = 8)
+#grid = tf_visualization.put_averaged_kernels_on_color_grid (weights['wc2'], grid_Y = 8, grid_X = 8)
+grid = tf_visualization.put_fully_connected_on_grid (weights['wd1'], grid_Y = 25, grid_X = 25)
 
 # the end of graph construction
 
@@ -232,6 +267,10 @@ threads = tf.train.start_queue_runners(sess = sess, coord = coord)
 
 iterations = max(1, int(train_amount / batch_size)) * epochs
 
+array = sess.run(weights['wd1'])
+fname = 'wd1first.csv'
+numpy.savetxt(fname, array.flatten(), "%10.10f")
+
 for i in range(iterations):
 
     wc1_summary = tf.image_summary('conv1/features'+ str(i), grid, max_images = 1)
@@ -242,10 +281,10 @@ for i in range(iterations):
     if i % 10 == 0:
         test_accuracy()
         
-    train_writer.add_summary(summary)
+    train_writer.add_summary(summary)    
     
     '''
-    array = sess.run(weights['wc1'])
+    array = sess.run(weights['wc2'])
     fname = 'conv' + str(i).zfill(9) + '.csv'
     numpy.savetxt(fname, array.flatten(), "%10.10f")
     '''
@@ -255,7 +294,12 @@ for i in range(iterations):
     fname = 'out' + str(i).zfill(9) + '.csv'
     numpy.savetxt(fname, array.flatten(), "%10.10f")
     '''
+    
 
+
+array = sess.run(weights['wd1'])
+fname = 'wd1last.csv'
+numpy.savetxt(fname, array.flatten(), "%10.10f")
                     
 test_accuracy()
     
