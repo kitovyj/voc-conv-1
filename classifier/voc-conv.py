@@ -40,30 +40,46 @@ http://stackoverflow.com/questions/37312421/tensorflow-whats-the-difference-betw
 L1 and L2 regularizations explained:
 https://www.quora.com/What-is-the-difference-between-L1-and-L2-regularization
 
+independent and mutex classes:
+https://www.quora.com/How-does-one-use-neural-networks-for-the-task-of-multi-class-label-classification
+
+
 '''
 
+import sys
 import numpy
 import tensorflow as tf
 import tf_visualization
 
 # Parameters
-learning_rate = 0.001
+#learning_rate = 0.000005
+learning_rate = 0.0005
 
 image_width = 100
 image_height = 100
 
+#image_width = 28
+#image_height = 28
+
 # Network Parameters
 n_input = image_width * image_height 
-n_classes = 2 # MNIST total classes (0-9 digits)
-dropout = 0.75 # Dropout, probability to keep units
+n_classes = 6 # Mtotal classes
+dropout = 1.0 # Dropout, probability to keep units
 
 
-train_amount = 9000
+train_amount = 14000*n_classes
 
-epochs = 1
+epochs = 20
 
 batch_size = 64
-eval_batch_size = 200
+eval_batch_size = n_classes * 100
+
+argc = len(sys.argv)
+
+kernel_size = 5
+
+if argc > 1:
+    kernel_size = int(sys.argv[1])
 
 # tf Graph input
 #x = tf.placeholder(tf.float32, [None, n_input])
@@ -142,12 +158,12 @@ biases = {
 # Store layers weight & bias
 weights = {
     # 5x5 conv, 1 input, 32 outputs
-    'wc1': tf.Variable(tf.truncated_normal([5, 5, 1, 32], stddev=0.1)),
+    'wc1': tf.Variable(tf.truncated_normal([kernel_size, kernel_size, 1, 32], stddev=0.1)),
 #    'wc1': tf.Variable(tf.random_normal([5, 5, 1, 32])),
     #'wc1': tf.Variable(tf.random_normal([12, 12, 1, 32])),
     #'wc1': tf.Variable(tf.zeros([5, 5, 1, 32])),
     # 5x5 conv, 32 inputs, 64 outputs
-    'wc2': tf.Variable(tf.truncated_normal([5, 5, 32, 64], stddev=0.1)),
+    'wc2': tf.Variable(tf.truncated_normal([kernel_size, kernel_size, 32, 64], stddev=0.1)),
     #'wc2': tf.Variable(tf.random_normal([5, 5, 32, 64])),
     #'wc2': tf.Variable(tf.random_normal([12, 12, 32, 64])),
     # fully connected, 7*7*64 inputs, 1024 outputs
@@ -157,6 +173,14 @@ weights = {
     # 1024 inputs, n_classes outputs (class prediction)
     #'out': tf.Variable(tf.random_normal([1024, n_classes]))
     'out': tf.Variable(tf.truncated_normal([1024, n_classes], stddev=0.1))
+}
+
+
+weights_copy = {
+    'wc1': tf.Variable(weights['wc1'].initialized_value()),
+    'wc2': tf.Variable(weights['wc2'].initialized_value()),
+    'wd1': tf.Variable(weights['wd1'].initialized_value()),
+    'out': tf.Variable(weights['out'].initialized_value())
 }
 
 '''
@@ -171,9 +195,37 @@ biases = {
 def input_data(start_index, amount, shuffle):
     
     data_folder = '/media/sf_vb-shared/data/'
-        
+
+
+    
+    folder_map = tf.constant(['a', 'b', 'c', 'd', 'e', 'f'])
+    label_map = tf.constant([ [0.0, 1.0, 0.0, 0.0, 0.0, 0.0],
+                              [1.0, 0.0, 0.0, 0.0, 0.0, 0.0], 
+                              [0.0, 0.0, 1.0, 0.0, 0.0, 0.0], 
+                              [0.0, 0.0, 0.0, 1.0, 0.0, 0.0], 
+                              [0.0, 0.0, 0.0, 0.0, 1.0, 0.0], 
+                              [0.0, 0.0, 0.0, 0.0, 0.0, 1.0] ])
+    
+
+    '''
+    folder_map = tf.constant(['a', 'c', 'e'])
+    label_map = tf.constant([ [1.0, 0.0, 0.0],
+                              [0.0, 1.0, 0.0], 
+                              [0.0, 0.0, 1.0] ])
+    
+    '''
+
+    '''
     folder_map = tf.constant(['a', 'b'])
-    label_map = tf.constant([ [0.0, 1.0], [1.0, 0.0] ])
+    label_map = tf.constant([ [1.0, 0.0],
+                              [0.0, 1.0] ])
+    '''
+
+    '''
+    folder_map = tf.constant(['a', 'c'])
+    label_map = tf.constant([ [1.0, 0.0],
+                              [0.0, 1.0] ])
+    '''
     
     range_queue = tf.train.range_input_producer(amount, shuffle = shuffle)
 
@@ -198,7 +250,8 @@ def input_data(start_index, amount, shuffle):
     
     file_name = tf.string_join([tf.constant(data_folder), folder, tf.constant('/data'), abs_index_str, tf.constant('.png')])
     
-    #file_name = tf.Print(file_name, [file_name], message = "This is file name: ")
+#    if shuffle == False:
+#        file_name = tf.Print(file_name, [file_name], message = "This is file name: ")
         
     raw_data = tf.read_file(file_name)    
     
@@ -207,14 +260,35 @@ def input_data(start_index, amount, shuffle):
     #data_shape = tf.shape(data);
     #data = tf.Print(data, [data_shape], message = "Data shape: ")            
     #data = tf.image.rgb_to_grayscale(data)
-    #data = tf.image.resize_images(data, image_height, image_width)
+    data = tf.image.resize_images(data, image_height, image_width)
     
     
     data = tf.reshape(data, [-1])    
     data = tf.to_float(data)
     
     return data, label
-            
+ 
+ 
+def euclidean_norm(a):
+    return tf.sqrt(tf.reduce_sum(tf.square(a)))
+
+def normalize(a):
+    return tf.div(a, euclidean_norm(a))
+    
+def weights_change(a, b):
+    distance = euclidean_norm(tf.sub(normalize(a), normalize(b)))
+    return distance
+    
+def weights_change_summary():
+    wc1 = weights_change(weights['wc1'], weights_copy['wc1'])
+    wc2 = weights_change(weights['wc2'], weights_copy['wc2'])
+    wd1 = weights_change(weights['wd1'], weights_copy['wd1'])
+    out = weights_change(weights['out'], weights_copy['out'])        
+    tf.scalar_summary('wc1', wc1)                          
+    tf.scalar_summary('wc2', wc2)
+    tf.scalar_summary('wd1', wd1)                          
+    tf.scalar_summary('out', out)                          
+    
 x, y = input_data(0, train_amount, shuffle = True)
 
 x.set_shape([image_height * image_width])
@@ -227,7 +301,42 @@ pred = conv_net(x_batch, weights, biases, keep_prob)
 
 # Define loss and optimizer
 cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(pred, y_batch))
-optimizer = tf.train.AdamOptimizer(learning_rate = learning_rate).minimize(cost)
+
+# L2 regularization for the fully connected parameters.
+
+regularizers = (tf.nn.l2_loss(weights['wd1']) + tf.nn.l2_loss(biases['bd1']) +
+                tf.nn.l2_loss(weights['out']) + tf.nn.l2_loss(biases['out']))
+# Add the regularization term to the loss.
+cost += 5e-4 * regularizers
+
+
+# Optimizer: set up a variable that's incremented once per batch and
+# controls the learning rate decay.
+batch = tf.Variable(0, dtype = tf.float32)
+# Decay once per epoch, using an exponential schedule starting at 0.01.
+train_size = 15000
+
+'''
+learning_rate = tf.train.exponential_decay(
+    0.001,                # Base learning rate.
+    batch * batch_size,  # Current index into the dataset.
+    train_size,          # Decay step.
+    0.95,                # Decay rate.
+    staircase = True)
+'''
+
+optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(cost)
+#optimizer = tf.train.MomentumOptimizer(learning_rate, 0.1).minimize(cost, global_step=batch)
+
+#try smaller values
+#optimizer = tf.train.MomentumOptimizer(0.001, 0.9).minimize(cost)
+#optimizer = tf.train.MomentumOptimizer(0.0001, 0.9).minimize(cost, global_step=batch)
+
+#optimizer = tf.train.MomentumOptimizer(0.001, 0.9).minimize(cost, global_step=batch)
+
+#optimizer = tf.train.MomentumOptimizer(0.001, 0.9).minimize(cost, global_step=batch)
+
+#optimizer = tf.train.AdamOptimizer(learning_rate = learning_rate).minimize(cost)
 
 # Define evaluation pipeline
 
@@ -244,9 +353,9 @@ def test_accuracy():
     acc = sess.run(accuracy, feed_dict = {keep_prob: 1.0} )    
     print("Testing Accuracy:", acc )    
 
-#grid = tf_visualization.put_kernels_on_color_grid (weights['wc1'], grid_Y = 4, grid_X = 8)
+grid = tf_visualization.put_kernels_on_color_grid (weights['wc1'], grid_Y = 4, grid_X = 8)
 #grid = tf_visualization.put_averaged_kernels_on_color_grid (weights['wc2'], grid_Y = 8, grid_X = 8)
-grid = tf_visualization.put_fully_connected_on_grid (weights['wd1'], grid_Y = 25, grid_X = 25)
+#grid = tf_visualization.put_fully_connected_on_grid (weights['wd1'], grid_Y = 25, grid_X = 25)
 
 # the end of graph construction
 
@@ -267,21 +376,31 @@ threads = tf.train.start_queue_runners(sess = sess, coord = coord)
 
 iterations = max(1, int(train_amount / batch_size)) * epochs
 
+'''
 array = sess.run(weights['wd1'])
 fname = 'wd1first.csv'
 numpy.savetxt(fname, array.flatten(), "%10.10f")
+'''
+
+weights_change_summary()
 
 for i in range(iterations):
 
-    wc1_summary = tf.image_summary('conv1/features'+ str(i), grid, max_images = 1)
+    wc1_summary = tf.image_summary('conv1/features'+ str(i), grid, max_images = 1)    
+    all_summaries = tf.merge_all_summaries()
 
-    _, summary = sess.run([optimizer, wc1_summary], feed_dict = {keep_prob: dropout} )
-    #_ = sess.run([optimizer], feed_dict = {keep_prob: dropout} )
-    print((i * 100) / iterations, "% done" )    
+    #_, c, _, summary = sess.run([optimizer, cost, learning_rate, wc1_summary], feed_dict = {keep_prob: dropout} )
+    #  _, _, summary = sess.run([optimizer, learning_rate, wc1_summary], feed_dict = {keep_prob: dropout} )
+    _, s = sess.run([optimizer, all_summaries], feed_dict = {keep_prob: dropout} )
+    #_, summary = sess.run([optimizer, wc1_summary], feed_dict = {keep_prob: dropout} )
+    # _ = sess.run([optimizer], feed_dict = {keep_prob: dropout} )
+    # print((i * 100) / iterations, "% done" )    
     if i % 10 == 0:
+        
+        #print("Minibatch Loss= " + "{:.6f}".format(c))        
         test_accuracy()
         
-    train_writer.add_summary(summary)    
+    train_writer.add_summary(s)    
     
     '''
     array = sess.run(weights['wc2'])
@@ -296,10 +415,11 @@ for i in range(iterations):
     '''
     
 
-
+'''
 array = sess.run(weights['wd1'])
 fname = 'wd1last.csv'
 numpy.savetxt(fname, array.flatten(), "%10.10f")
+'''
                     
 test_accuracy()
     
