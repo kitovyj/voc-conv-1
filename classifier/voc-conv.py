@@ -260,7 +260,7 @@ def input_data(start_index, amount, shuffle):
     #data_shape = tf.shape(data);
     #data = tf.Print(data, [data_shape], message = "Data shape: ")            
     #data = tf.image.rgb_to_grayscale(data)
-    data = tf.image.resize_images(data, image_height, image_width)
+#    data = tf.image.resize_images(data, image_height, image_width)
     
     
     data = tf.reshape(data, [-1])    
@@ -384,11 +384,12 @@ numpy.savetxt(fname, array.flatten(), "%10.10f")
 
 weights_change_summary()
 
+wc1_summary = tf.image_summary('conv1/features', grid, max_images = 1)    
+all_summaries = tf.merge_all_summaries()
+
 for i in range(iterations):
 
-    wc1_summary = tf.image_summary('conv1/features'+ str(i), grid, max_images = 1)    
-    all_summaries = tf.merge_all_summaries()
-
+ 
     #_, c, _, summary = sess.run([optimizer, cost, learning_rate, wc1_summary], feed_dict = {keep_prob: dropout} )
     #  _, _, summary = sess.run([optimizer, learning_rate, wc1_summary], feed_dict = {keep_prob: dropout} )
     _, s = sess.run([optimizer, all_summaries], feed_dict = {keep_prob: dropout} )
