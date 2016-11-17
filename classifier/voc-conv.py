@@ -86,6 +86,7 @@ if argc > 1:
 #y = tf.placeholder(tf.float32, [None, n_classes])
 
 keep_prob = tf.placeholder(tf.float32) #dropout (keep probability)
+accuracy_ph = tf.placeholder(tf.float32) #dropout (keep probability)
 
 # Create some wrappers for simplicity
 def conv2d(x, W, b, strides = 1):
@@ -195,6 +196,7 @@ biases = {
 def input_data(start_index, amount, shuffle):
     
     data_folder = '/media/sf_vb-shared/data/'
+    #data_folder = './data/'
 
 
     
@@ -349,9 +351,14 @@ pred1 = conv_net(x1_batch, weights, biases, keep_prob)
 correct_pred = tf.equal(tf.argmax(pred1, 1), tf.argmax(y1_batch, 1))
 accuracy = tf.reduce_mean(tf.cast(correct_pred, tf.float32))
 
+accuracy_summary = tf.scalar_summary('accuracy', accuracy_ph)    
+accuracy_value = 0
+
 def test_accuracy():
+    global accuracy_value
     acc = sess.run(accuracy, feed_dict = {keep_prob: 1.0} )    
-    print("Testing Accuracy:", acc )    
+    accuracy_value = acc
+    print("Testing Accuracy:", acc)    
 
 grid = tf_visualization.put_kernels_on_color_grid (weights['wc1'], grid_Y = 4, grid_X = 8)
 #grid = tf_visualization.put_averaged_kernels_on_color_grid (weights['wc2'], grid_Y = 8, grid_X = 8)
@@ -381,7 +388,6 @@ array = sess.run(weights['wd1'])
 fname = 'wd1first.csv'
 numpy.savetxt(fname, array.flatten(), "%10.10f")
 '''
-
 weights_change_summary()
 
 wc1_summary = tf.image_summary('conv1/features', grid, max_images = 1)    
@@ -389,17 +395,17 @@ all_summaries = tf.merge_all_summaries()
 
 for i in range(iterations):
 
- 
-    #_, c, _, summary = sess.run([optimizer, cost, learning_rate, wc1_summary], feed_dict = {keep_prob: dropout} )
-    #  _, _, summary = sess.run([optimizer, learning_rate, wc1_summary], feed_dict = {keep_prob: dropout} )
-    _, s = sess.run([optimizer, all_summaries], feed_dict = {keep_prob: dropout} )
-    #_, summary = sess.run([optimizer, wc1_summary], feed_dict = {keep_prob: dropout} )
-    # _ = sess.run([optimizer], feed_dict = {keep_prob: dropout} )
-    # print((i * 100) / iterations, "% done" )    
     if i % 10 == 0:
         
         #print("Minibatch Loss= " + "{:.6f}".format(c))        
         test_accuracy()
+ 
+    #_, c, _, summary = sess.run([optimizer, cost, learning_rate, wc1_summary], feed_dict = {keep_prob: dropout} )
+    #  _, _, summary = sess.run([optimizer, learning_rate, wc1_summary], feed_dict = {keep_prob: dropout} )
+    _, s = sess.run([optimizer, all_summaries], feed_dict = {keep_prob: dropout, accuracy_ph: accuracy_value } )
+    #_, summary = sess.run([optimizer, wc1_summary], feed_dict = {keep_prob: dropout} )
+    # _ = sess.run([optimizer], feed_dict = {keep_prob: dropout} )
+    # print((i * 100) / iterations, "% done" )    
         
     train_writer.add_summary(s)    
     
