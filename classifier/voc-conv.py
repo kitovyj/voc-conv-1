@@ -43,6 +43,7 @@ https://www.quora.com/What-is-the-difference-between-L1-and-L2-regularization
 independent and mutex classes:
 https://www.quora.com/How-does-one-use-neural-networks-for-the-task-of-multi-class-label-classification
 
+deep completion : https://bamos.github.io/2016/08/09/deep-completion/
 
 '''
 
@@ -53,7 +54,8 @@ import tf_visualization
 
 # Parameters
 #learning_rate = 0.000005
-learning_rate = 0.0005
+#learning_rate = 0.0005
+learning_rate = 0.01
 
 image_width = 100
 image_height = 100
@@ -63,7 +65,7 @@ image_height = 100
 
 # Network Parameters
 n_input = image_width * image_height 
-n_classes = 6 # Mtotal classes
+n_classes = 4 # Mtotal classes
 dropout = 1.0 # Dropout, probability to keep units
 
 
@@ -72,7 +74,9 @@ train_amount = 14000*n_classes
 epochs = 20
 
 batch_size = 64
-eval_batch_size = n_classes * 100
+
+n_groups = 6
+eval_batch_size = n_groups * 100
 
 argc = len(sys.argv)
 
@@ -126,7 +130,7 @@ def conv_net(x, weights, biases, dropout):
     fc1 = tf.nn.dropout(fc1, dropout)
 
     # Output, class prediction
-    out = tf.add(tf.matmul(fc1, weights['out']), biases['out'])
+    out = tf.nn.sigmoid(tf.add(tf.matmul(fc1, weights['out']), biases['out']))
     return out
 
 '''
@@ -193,42 +197,33 @@ biases = {
 }
 '''
  
+n_groups = 6
 def input_data(start_index, amount, shuffle):
     
     data_folder = '/media/sf_vb-shared/data/'
     #data_folder = './data/'
 
-
     
     folder_map = tf.constant(['a', 'b', 'c', 'd', 'e', 'f'])
+    
+    
+    label_map = tf.constant([ [0.0, 1.0, 0.0, 0.0],
+                              [1.0, 1.0, 0.0, 0.0], 
+                              [0.0, 0.0, 1.0, 0.0], 
+                              [1.0, 0.0, 1.0, 0.0], 
+                              [0.0, 0.0, 0.0, 1.0], 
+                              [1.0, 0.0, 0.0, 1.0] ])
+    
+    
+    '''    
     label_map = tf.constant([ [0.0, 1.0, 0.0, 0.0, 0.0, 0.0],
                               [1.0, 0.0, 0.0, 0.0, 0.0, 0.0], 
                               [0.0, 0.0, 1.0, 0.0, 0.0, 0.0], 
                               [0.0, 0.0, 0.0, 1.0, 0.0, 0.0], 
                               [0.0, 0.0, 0.0, 0.0, 1.0, 0.0], 
                               [0.0, 0.0, 0.0, 0.0, 0.0, 1.0] ])
-    
-
-    '''
-    folder_map = tf.constant(['a', 'c', 'e'])
-    label_map = tf.constant([ [1.0, 0.0, 0.0],
-                              [0.0, 1.0, 0.0], 
-                              [0.0, 0.0, 1.0] ])
-    
-    '''
-
-    '''
-    folder_map = tf.constant(['a', 'b'])
-    label_map = tf.constant([ [1.0, 0.0],
-                              [0.0, 1.0] ])
-    '''
-
-    '''
-    folder_map = tf.constant(['a', 'c'])
-    label_map = tf.constant([ [1.0, 0.0],
-                              [0.0, 1.0] ])
-    '''
-    
+    '''                          
+      
     range_queue = tf.train.range_input_producer(amount, shuffle = shuffle)
 
     range_value = range_queue.dequeue()
@@ -238,7 +233,7 @@ def input_data(start_index, amount, shuffle):
 #       range_value = tf.Print(range_value, [range_value], message = "rv: ")            
 
         
-    per_class = int(amount / n_classes)
+    per_class = int(amount / n_groups)
     class_index = tf.div(range_value, tf.constant(per_class))
                
     label = tf.gather(label_map, class_index)
@@ -302,7 +297,7 @@ x_batch, y_batch = tf.train.batch([x, y], batch_size = batch_size)
 pred = conv_net(x_batch, weights, biases, keep_prob)
 
 # Define loss and optimizer
-cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(pred, y_batch))
+cost = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(pred, y_batch))
 
 # L2 regularization for the fully connected parameters.
 
@@ -342,13 +337,14 @@ optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(cost)
 
 # Define evaluation pipeline
 
-x1, y1 = input_data(int(train_amount / n_classes), eval_batch_size, shuffle = False)
+x1, y1 = input_data(int(train_amount / n_groups), eval_batch_size, shuffle = False)
 x1.set_shape([image_height * image_width])
 y1.set_shape([n_classes])
 
 x1_batch, y1_batch = tf.train.batch([x1, y1], batch_size = eval_batch_size)
-pred1 = conv_net(x1_batch, weights, biases, keep_prob)
-correct_pred = tf.equal(tf.argmax(pred1, 1), tf.argmax(y1_batch, 1))
+pred1 = tf.round(conv_net(x1_batch, weights, biases, keep_prob))
+#correct_pred = tf.equal(tf.argmax(pred1, 1), tf.argmax(y1_batch, 1))
+correct_pred = tf.reduce_all(tf.equal(pred1, y1_batch), 1)
 accuracy = tf.reduce_mean(tf.cast(correct_pred, tf.float32))
 
 accuracy_summary = tf.scalar_summary('accuracy', accuracy_ph)    
@@ -361,6 +357,7 @@ def test_accuracy():
     print("Testing Accuracy:", acc)    
 
 grid = tf_visualization.put_kernels_on_color_grid (weights['wc1'], grid_Y = 4, grid_X = 8)
+grid_orig = tf_visualization.put_kernels_on_color_grid (weights_copy['wc1'], grid_Y = 4, grid_X = 8)
 #grid = tf_visualization.put_averaged_kernels_on_color_grid (weights['wc2'], grid_Y = 8, grid_X = 8)
 #grid = tf_visualization.put_fully_connected_on_grid (weights['wd1'], grid_Y = 25, grid_X = 25)
 
@@ -391,6 +388,7 @@ numpy.savetxt(fname, array.flatten(), "%10.10f")
 weights_change_summary()
 
 wc1_summary = tf.image_summary('conv1/features', grid, max_images = 1)    
+wc1_summary_orig = tf.image_summary('conv1orig', grid_orig, max_images = 1)    
 all_summaries = tf.merge_all_summaries()
 
 for i in range(iterations):
