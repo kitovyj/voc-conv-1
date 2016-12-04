@@ -55,7 +55,7 @@ import tf_visualization
 # Parameters
 #learning_rate = 0.000005
 #learning_rate = 0.0005
-learning_rate = 0.01
+learning_rate = 0.001
 
 image_width = 100
 image_height = 100
@@ -65,18 +65,17 @@ image_height = 100
 
 # Network Parameters
 n_input = image_width * image_height 
-n_classes = 4 # Mtotal classes
+n_classes = 5 # Mtotal classes
 dropout = 1.0 # Dropout, probability to keep units
 
 
-train_amount = 14000*n_classes
+train_amount = 18000
 
 epochs = 20
 
 batch_size = 64
 
-n_groups = 6
-eval_batch_size = n_groups * 100
+eval_batch_size = n_classes * 100
 
 argc = len(sys.argv)
 
@@ -130,7 +129,7 @@ def conv_net(x, weights, biases, dropout):
     fc1 = tf.nn.dropout(fc1, dropout)
 
     # Output, class prediction
-    out = tf.nn.sigmoid(tf.add(tf.matmul(fc1, weights['out']), biases['out']))
+    out = tf.add(tf.matmul(fc1, weights['out']), biases['out'])
     return out
 
 '''
@@ -196,63 +195,53 @@ biases = {
     'out': tf.Variable(tf.random_normal([n_classes]))
 }
 '''
+
+def string_length(t):
+  return tf.py_func(lambda p: [len(x) for x in p], [t], [tf.int64])[0]
  
-n_groups = 6
 def input_data(start_index, amount, shuffle):
     
     data_folder = '/media/sf_vb-shared/data/'
-    #data_folder = './data/'
-
-    
-    folder_map = tf.constant(['a', 'b', 'c', 'd', 'e', 'f'])
-    
-    
-    label_map = tf.constant([ [0.0, 1.0, 0.0, 0.0],
-                              [1.0, 1.0, 0.0, 0.0], 
-                              [0.0, 0.0, 1.0, 0.0], 
-                              [1.0, 0.0, 1.0, 0.0], 
-                              [0.0, 0.0, 0.0, 1.0], 
-                              [1.0, 0.0, 0.0, 1.0] ])
-    
-    
-    '''    
-    label_map = tf.constant([ [0.0, 1.0, 0.0, 0.0, 0.0, 0.0],
-                              [1.0, 0.0, 0.0, 0.0, 0.0, 0.0], 
-                              [0.0, 0.0, 1.0, 0.0, 0.0, 0.0], 
-                              [0.0, 0.0, 0.0, 1.0, 0.0, 0.0], 
-                              [0.0, 0.0, 0.0, 0.0, 1.0, 0.0], 
-                              [0.0, 0.0, 0.0, 0.0, 0.0, 1.0] ])
-    '''                          
       
     range_queue = tf.train.range_input_producer(amount, shuffle = shuffle)
 
     range_value = range_queue.dequeue()
 
 #    if shuffle == False:
-#    if shuffle == True:
-#       range_value = tf.Print(range_value, [range_value], message = "rv: ")            
+#    if shuffle == True
+#    range_value = tf.Print(range_value, [range_value], message = "rv: ")            
 
-        
-    per_class = int(amount / n_groups)
-    class_index = tf.div(range_value, tf.constant(per_class))
-               
-    label = tf.gather(label_map, class_index)
-    folder = tf.gather(folder_map, class_index)
-    
-    relative_index = tf.mod(range_value, tf.constant(per_class))
-        
-    abs_index = tf.add(relative_index, tf.constant(start_index))
+                
+    abs_index = tf.add(range_value, tf.constant(start_index))
     
     abs_index_str = tf.as_string(abs_index, width = 9, fill = '0')
     
-    file_name = tf.string_join([tf.constant(data_folder), folder, tf.constant('/data'), abs_index_str, tf.constant('.png')])
+    png_file_name = tf.string_join([tf.constant(data_folder), tf.constant('data'), abs_index_str, tf.constant('.png')])
+    csv_file_name = tf.string_join([tf.constant(data_folder), tf.constant('data'), abs_index_str, tf.constant('.csv')])
     
 #    if shuffle == False:
-#        file_name = tf.Print(file_name, [file_name], message = "This is file name: ")
-        
-    raw_data = tf.read_file(file_name)    
+#    png_file_name = tf.Print(png_file_name, [png_file_name], message = "This is file name: ")
+#    csv_file_name = tf.Print(csv_file_name, [csv_file_name], message = "This is file name: ")
+
+
+    filename_queue = tf.train.string_input_producer([csv_file_name])
+    reader = tf.TextLineReader()
     
-    data = tf.image.decode_png(raw_data)
+    _, csv_data = reader.read(filename_queue)
+    #csv_data = tf.read_file(csv_file_name)
+    #csv_data = tf.slice(csv_data, [0], [string_length(csv_data) - 1])
+#    csv_data = tf.Print(csv_data, [csv_data], message = "This is csv_data: ")
+    label_defaults = [[] for x in range(n_classes)]   
+#    csv_data = tf.Print(csv_data, [csv_data], message = "b4! ")
+    unpacked_labels = tf.decode_csv(csv_data, record_defaults = label_defaults)
+#    png_file_name = tf.Print(png_file_name, [png_file_name], message = "after ")
+    labels = tf.pack(unpacked_labels)
+#    labels = tf.Print(labels, [labels], message = "These are labels: ")  
+#    print(labels.get_shape())
+        
+    png_data = tf.read_file(png_file_name)    
+    
+    data = tf.image.decode_png(png_data)
 
     #data_shape = tf.shape(data);
     #data = tf.Print(data, [data_shape], message = "Data shape: ")            
@@ -263,7 +252,7 @@ def input_data(start_index, amount, shuffle):
     data = tf.reshape(data, [-1])    
     data = tf.to_float(data)
     
-    return data, label
+    return data, labels
  
  
 def euclidean_norm(a):
@@ -290,6 +279,7 @@ x, y = input_data(0, train_amount, shuffle = True)
 
 x.set_shape([image_height * image_width])
 y.set_shape([n_classes])
+#y = tf.reshape(y, [n_classes])
 
 x_batch, y_batch = tf.train.batch([x, y], batch_size = batch_size)
 
@@ -337,14 +327,15 @@ optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(cost)
 
 # Define evaluation pipeline
 
-x1, y1 = input_data(int(train_amount / n_groups), eval_batch_size, shuffle = False)
+x1, y1 = input_data(train_amount, eval_batch_size, shuffle = False)
 x1.set_shape([image_height * image_width])
 y1.set_shape([n_classes])
 
 x1_batch, y1_batch = tf.train.batch([x1, y1], batch_size = eval_batch_size)
-pred1 = tf.round(conv_net(x1_batch, weights, biases, keep_prob))
+pred1 = tf.round(tf.sigmoid(conv_net(x1_batch, weights, biases, keep_prob)))
 #correct_pred = tf.equal(tf.argmax(pred1, 1), tf.argmax(y1_batch, 1))
-correct_pred = tf.reduce_all(tf.equal(pred1, y1_batch), 1)
+#correct_pred = tf.reduce_all(tf.equal(pred1, y1_batch), 1)
+correct_pred = tf.equal(pred1, y1_batch)
 accuracy = tf.reduce_mean(tf.cast(correct_pred, tf.float32))
 
 accuracy_summary = tf.scalar_summary('accuracy', accuracy_ph)    
