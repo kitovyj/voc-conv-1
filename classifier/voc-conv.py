@@ -55,7 +55,7 @@ import tf_visualization
 # Parameters
 #learning_rate = 0.000005
 #learning_rate = 0.0005
-learning_rate = 0.001
+learning_rate = 0.0001
 
 image_width = 100
 image_height = 100
@@ -65,13 +65,13 @@ image_height = 100
 
 # Network Parameters
 n_input = image_width * image_height 
-n_classes = 5 # Mtotal classes
+n_classes = 9 # Mtotal classes
 dropout = 1.0 # Dropout, probability to keep units
 
 
-train_amount = 18000
+train_amount = 24000
 
-epochs = 20
+epochs = 200
 
 batch_size = 64
 
@@ -147,12 +147,12 @@ weights = {
 '''
 
 
-
+hidden_layer_size = 64
 
 biases = {
     'bc1': tf.Variable(tf.zeros([32])),
     'bc2': tf.Variable(tf.constant(0.1, shape=[64], dtype=tf.float32)),
-    'bd1': tf.Variable(tf.constant(0.1, shape=[1024])),
+    'bd1': tf.Variable(tf.constant(0.1, shape=[hidden_layer_size])),
     'out': tf.Variable(tf.constant(0.1, shape=[n_classes]))
 }
 
@@ -172,11 +172,11 @@ weights = {
     #'wc2': tf.Variable(tf.random_normal([12, 12, 32, 64])),
     # fully connected, 7*7*64 inputs, 1024 outputs
     #'wd1': tf.Variable(tf.random_normal([7*7*64, 1024])),
-    'wd1': tf.Variable(tf.truncated_normal([int((image_width / 4) * (image_height / 4) * 64), 1024], stddev=0.1)),
+    'wd1': tf.Variable(tf.truncated_normal([int((image_width / 4) * (image_height / 4) * 64), hidden_layer_size], stddev=0.1)),
 #    'wd1': tf.Variable(tf.random_normal([int((image_width / 4) * (image_height / 4) * 64), 1024])),
     # 1024 inputs, n_classes outputs (class prediction)
     #'out': tf.Variable(tf.random_normal([1024, n_classes]))
-    'out': tf.Variable(tf.truncated_normal([1024, n_classes], stddev=0.1))
+    'out': tf.Variable(tf.truncated_normal([hidden_layer_size, n_classes], stddev=0.1))
 }
 
 
@@ -199,10 +199,11 @@ biases = {
 def string_length(t):
   return tf.py_func(lambda p: [len(x) for x in p], [t], [tf.int64])[0]
  
+  
 def input_data(start_index, amount, shuffle):
     
-    data_folder = '/media/sf_vb-shared/data/'
-      
+#    data_folder = '/media/sf_vb-shared/data/'
+    data_folder = './data/'     
     range_queue = tf.train.range_input_producer(amount, shuffle = shuffle)
 
     range_value = range_queue.dequeue()
@@ -224,17 +225,22 @@ def input_data(start_index, amount, shuffle):
 #    csv_file_name = tf.Print(csv_file_name, [csv_file_name], message = "This is file name: ")
 
 
-    filename_queue = tf.train.string_input_producer([csv_file_name])
-    reader = tf.TextLineReader()
+    #filename_queue = tf.train.string_input_producer([csv_file_name])
+    #filename_queue.enqueue([csv_file_name]);
+    #reader = tf.TextLineReader()
     
-    _, csv_data = reader.read(filename_queue)
-    #csv_data = tf.read_file(csv_file_name)
+    #_, csv_data = reader.read(filename_queue)
+    csv_data = tf.read_file(csv_file_name)
     #csv_data = tf.slice(csv_data, [0], [string_length(csv_data) - 1])
-#    csv_data = tf.Print(csv_data, [csv_data], message = "This is csv_data: ")
+ #   csv_data = tf.Print(csv_data, [csv_data], message = "This is csv_data: ")
     label_defaults = [[] for x in range(n_classes)]   
-#    csv_data = tf.Print(csv_data, [csv_data], message = "b4! ")
+  #  csv_data = tf.Print(csv_data, [csv_data], message = "b4! ")
     unpacked_labels = tf.decode_csv(csv_data, record_defaults = label_defaults)
 #    png_file_name = tf.Print(png_file_name, [png_file_name], message = "after ")
+#    unpacked_labels = list(reversed(unpacked_labels))
+#    unpacked_labels.pop()
+    #unpacked_labels[4] = tf.constant(1, dtype = tf.float32);
+    #unpacked_labels[5] = tf.constant(1, dtype = tf.float32);
     labels = tf.pack(unpacked_labels)
 #    labels = tf.Print(labels, [labels], message = "These are labels: ")  
 #    print(labels.get_shape())
@@ -253,7 +259,6 @@ def input_data(start_index, amount, shuffle):
     data = tf.to_float(data)
     
     return data, labels
- 
  
 def euclidean_norm(a):
     return tf.sqrt(tf.reduce_sum(tf.square(a)))
@@ -291,10 +296,10 @@ cost = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(pred, y_batch))
 
 # L2 regularization for the fully connected parameters.
 
-regularizers = (tf.nn.l2_loss(weights['wd1']) + tf.nn.l2_loss(biases['bd1']) +
-                tf.nn.l2_loss(weights['out']) + tf.nn.l2_loss(biases['out']))
+#regularizers = (tf.nn.l2_loss(weights['wd1']) + tf.nn.l2_loss(biases['bd1']) +
+#                tf.nn.l2_loss(weights['out']) + tf.nn.l2_loss(biases['out']))
 # Add the regularization term to the loss.
-cost += 5e-4 * regularizers
+#cost += 5e-4 * regularizers
 
 
 # Optimizer: set up a variable that's incremented once per batch and
@@ -333,6 +338,8 @@ y1.set_shape([n_classes])
 
 x1_batch, y1_batch = tf.train.batch([x1, y1], batch_size = eval_batch_size)
 pred1 = tf.round(tf.sigmoid(conv_net(x1_batch, weights, biases, keep_prob)))
+#y1_batch = tf.Print(y1_batch, [y1_batch], 'label', summarize = 30)
+#pred1 = tf.Print(pred1, [pred1], 'pred ', summarize = 30)
 #correct_pred = tf.equal(tf.argmax(pred1, 1), tf.argmax(y1_batch, 1))
 #correct_pred = tf.reduce_all(tf.equal(pred1, y1_batch), 1)
 correct_pred = tf.equal(pred1, y1_batch)
