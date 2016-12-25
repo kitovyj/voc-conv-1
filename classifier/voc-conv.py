@@ -326,10 +326,10 @@ def test_accuracy(iteration, total):
     batches_per_epoch = train_amount / batch_size    
     epoch = int(iteration / batches_per_epoch)
     done = int((iteration * 100) / total) 
-    batch = iteration % batches_per_epoch;
+    batch = int(iteration % batches_per_epoch);
     acc = sess.run(accuracy, feed_dict = {keep_prob: 1.0} )    
     accuracy_value = acc
-    print(str(done) + "% done" + ", epoch " + str(epoch) + ", batch " + str(batch) + ", testing accuracy: " + str(acc))
+    print(str(done) + "% done" + ", epoch " + str(epoch) + ", batches: " + str(batch) + ", testing accuracy: " + str(acc))
 
 grid = tf_visualization.put_kernels_on_color_grid (weights['wc1'], grid_Y = 4, grid_X = 8)
 grid_orig = tf_visualization.put_kernels_on_color_grid (weights_copy['wc1'], grid_Y = 4, grid_X = 8)
