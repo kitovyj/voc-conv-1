@@ -438,7 +438,7 @@ time_spent_summary = tf.summary.scalar('time spent, s', tf.constant(passed))
 time_spent_summary_result = sess.run(time_spent_summary)
 train_writer.add_summary(time_spent_summary_result)    
 
-print("starting learning ended, total time spent: " + str(passed) + "s")
+print("starting learning ended, total time spent: " + str(passed) + " s")
     
 coord.request_stop()
 coord.join()
