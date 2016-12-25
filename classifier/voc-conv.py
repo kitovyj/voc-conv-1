@@ -52,6 +52,7 @@ import numpy
 import tensorflow as tf
 import tf_visualization
 import argparse
+import time
 
 parser = argparse.ArgumentParser()
 
@@ -82,7 +83,7 @@ dropout = 1.0 # Dropout, probability to keep units
 
 train_amount = 50000
 
-epochs = 2
+epochs = 10
 
 batch_size = 64
 
@@ -171,8 +172,8 @@ def string_length(t):
   
 def input_data(start_index, amount, shuffle):
     
-    data_folder = '/media/sf_vb-shared/data/'
-#    data_folder = './data/'     
+#    data_folder = '/media/sf_vb-shared/data/'
+    data_folder = './data/'     
     range_queue = tf.train.range_input_producer(amount, shuffle = shuffle)
 
     range_value = range_queue.dequeue()
@@ -321,13 +322,14 @@ accuracy_summary = tf.summary.scalar('accuracy', accuracy_ph)
 accuracy_value = 0
 
 def test_accuracy(iteration, total):
-    global accuracy_value    
-    epoch = int(iteration / train_amount)
+    global accuracy_value   
+    batches_per_epoch = train_amount / batch_size    
+    epoch = int(iteration / batches_per_epoch)
     done = int((iteration * 100) / total) 
-    batch = iteration % train_amount;
+    batch = iteration % batches_per_epoch;
     acc = sess.run(accuracy, feed_dict = {keep_prob: 1.0} )    
     accuracy_value = acc
-    print(str(done) + "% done" + ", epoch " + str(epoch) + ", batch " + str(batch) + ", testing accuracy:" + str(acc))
+    print(str(done) + "% done" + ", epoch " + str(epoch) + ", batch " + str(batch) + ", testing accuracy: " + str(acc))
 
 grid = tf_visualization.put_kernels_on_color_grid (weights['wc1'], grid_Y = 4, grid_X = 8)
 grid_orig = tf_visualization.put_kernels_on_color_grid (weights_copy['wc1'], grid_Y = 4, grid_X = 8)
@@ -363,8 +365,8 @@ numpy.savetxt(fname, array.flatten(), "%10.10f")
 const_summaries = []
 
 const_summaries.append(tf.summary.scalar('kernel size', tf.constant(kernel_size)))
-const_summaries.append(tf.summary.scalar('fully connected layer', tf.constant(kernel_size))) 
-const_summaries.append(tf.summary.scalar('keep probablility(no drop out probability', tf.constant(kernel_size)))
+const_summaries.append(tf.summary.scalar('fully connected layer', tf.constant(fc_size)))
+const_summaries.append(tf.summary.scalar('keep probablility(no drop out probability)', tf.constant(dropout)))
 
 const_summary = tf.summary.merge(const_summaries)
 
@@ -384,6 +386,13 @@ train_summaries.append(tf.summary.image('conv1/features', grid, max_outputs = 1)
 train_summaries.append(tf.summary.image('conv1orig', grid_orig, max_outputs = 1))
 
 train_summary = tf.summary.merge(train_summaries)
+
+start_time = time.time()
+
+print("starting learning session")
+print("fully connected layer size: " + str(fc_size))
+print("kernel size: " + str(kernel_size))
+print("keep probability(1 - drop out probability): " + str(dropout))
 
 for i in range(iterations):
 
@@ -419,8 +428,17 @@ array = sess.run(weights['wd1'])
 fname = 'wd1last.csv'
 numpy.savetxt(fname, array.flatten(), "%10.10f")
 '''
-                    
-test_accuracy()
+                                             
+test_accuracy(iterations, iterations)
+
+end_time = time.time()
+passed = end_time - start_time
+
+time_spent_summary = tf.summary.scalar('time spent, s', tf.constant(passed))
+time_spent_summary_result = sess.run(time_spent_summary)
+train_writer.add_summary(time_spent_summary_result)    
+
+print("starting learning ended, total time spent: " + str(passed) + "s")
     
 coord.request_stop()
 coord.join()
