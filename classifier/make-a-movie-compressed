@@ -1,0 +1,1 @@
+ffmpeg -framerate 100 -i conv%09d.png -vf scale=1024:-1 -sws_flags neighbor -r 10 out.avi
