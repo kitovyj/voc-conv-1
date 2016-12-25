@@ -149,13 +149,13 @@ biases = {
 # Store layers weight & bias
 weights = {
     # 5x5 conv, 1 input, 32 outputs
-    'wc1': tf.Variable(tf.truncated_normal([kernel_size, kernel_size, 1, 32], stddev=0.1)),
+    'wc1': tf.Variable(tf.truncated_normal([kernel_size, kernel_size, 1, 32], stddev=0.1, seed = 1)),
     # 5x5 conv, 32 inputs, 64 outputs
-    'wc2': tf.Variable(tf.truncated_normal([kernel_size, kernel_size, 32, 64], stddev=0.1)),
+    'wc2': tf.Variable(tf.truncated_normal([kernel_size, kernel_size, 32, 64], stddev=0.1, seed = 1)),
     # fully connected, 7*7*64 inputs, 1024 outputs
-    'wd1': tf.Variable(tf.truncated_normal([int((image_width / 4) * (image_height / 4) * 64), fc_size], stddev=0.1)),
+    'wd1': tf.Variable(tf.truncated_normal([int((image_width / 4) * (image_height / 4) * 64), fc_size], stddev=0.1, seed = 1)),
      # 1024 inputs, n_classes outputs (class prediction)
-    'out': tf.Variable(tf.truncated_normal([fc_size, n_classes], stddev=0.1))
+    'out': tf.Variable(tf.truncated_normal([fc_size, n_classes], stddev=0.1, seed = 1))
 }
 
 
@@ -396,7 +396,7 @@ print("keep probability(1 - drop out probability): " + str(dropout))
 
 for i in range(iterations):
 
-    if i % 10 == 0:
+    if i % 50 == 0:
         
         #print("Minibatch Loss= " + "{:.6f}".format(c))        
         test_accuracy(i, iterations)
