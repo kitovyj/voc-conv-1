@@ -51,6 +51,17 @@ import sys
 import numpy
 import tensorflow as tf
 import tf_visualization
+import argparse
+
+parser = argparse.ArgumentParser()
+
+parser.add_argument('--kernel-size', dest = 'kernel_size', type = int, default = 5)
+parser.add_argument('--fc-size', dest = 'fc_size', type = int, default = 1024, help = 'fully connected layer size')
+
+args = parser.parse_args()
+
+kernel_size = args.kernel_size
+fc_size = args.fc_size
 
 # Parameters
 #learning_rate = 0.000005
@@ -69,20 +80,13 @@ n_classes = 9 # Mtotal classes
 dropout = 1.0 # Dropout, probability to keep units
 
 
-train_amount = 24000
+train_amount = 50000
 
-epochs = 200
+epochs = 2
 
 batch_size = 64
 
 eval_batch_size = n_classes * 100
-
-argc = len(sys.argv)
-
-kernel_size = 5
-
-if argc > 1:
-    kernel_size = int(sys.argv[1])
 
 # tf Graph input
 #x = tf.placeholder(tf.float32, [None, n_input])
@@ -132,51 +136,25 @@ def conv_net(x, weights, biases, dropout):
     out = tf.add(tf.matmul(fc1, weights['out']), biases['out'])
     return out
 
-'''
-# Store layers weight & bias
-weights = {
-    # 5x5 conv, 1 input, 32 outputs
-    'wc1': tf.Variable(tf.truncated_normal([5, 5, 1, 32], stddev=0.1)),
-    # 5x5 conv, 32 inputs, 64 outputs
-    'wc2': tf.Variable(tf.truncated_normal([5, 5, 32, 64], stddev=0.1)),
-    # fully connected, 7*7*64 inputs, 1024 outputs
-    'wd1': tf.Variable(tf.truncated_normal([7*7*64, 1024], stddev=0.1)),
-    # 1024 inputs, 10 outputs (class prediction)
-    'out': tf.Variable(tf.truncated_normal([1024, n_classes], stddev=0.1))
-}
-'''
-
-
-hidden_layer_size = 64
 
 biases = {
     'bc1': tf.Variable(tf.zeros([32])),
     'bc2': tf.Variable(tf.constant(0.1, shape=[64], dtype=tf.float32)),
-    'bd1': tf.Variable(tf.constant(0.1, shape=[hidden_layer_size])),
+    'bd1': tf.Variable(tf.constant(0.1, shape=[fc_size])),
     'out': tf.Variable(tf.constant(0.1, shape=[n_classes]))
 }
-
-
 
 
 # Store layers weight & bias
 weights = {
     # 5x5 conv, 1 input, 32 outputs
     'wc1': tf.Variable(tf.truncated_normal([kernel_size, kernel_size, 1, 32], stddev=0.1)),
-#    'wc1': tf.Variable(tf.random_normal([5, 5, 1, 32])),
-    #'wc1': tf.Variable(tf.random_normal([12, 12, 1, 32])),
-    #'wc1': tf.Variable(tf.zeros([5, 5, 1, 32])),
     # 5x5 conv, 32 inputs, 64 outputs
     'wc2': tf.Variable(tf.truncated_normal([kernel_size, kernel_size, 32, 64], stddev=0.1)),
-    #'wc2': tf.Variable(tf.random_normal([5, 5, 32, 64])),
-    #'wc2': tf.Variable(tf.random_normal([12, 12, 32, 64])),
     # fully connected, 7*7*64 inputs, 1024 outputs
-    #'wd1': tf.Variable(tf.random_normal([7*7*64, 1024])),
-    'wd1': tf.Variable(tf.truncated_normal([int((image_width / 4) * (image_height / 4) * 64), hidden_layer_size], stddev=0.1)),
-#    'wd1': tf.Variable(tf.random_normal([int((image_width / 4) * (image_height / 4) * 64), 1024])),
-    # 1024 inputs, n_classes outputs (class prediction)
-    #'out': tf.Variable(tf.random_normal([1024, n_classes]))
-    'out': tf.Variable(tf.truncated_normal([hidden_layer_size, n_classes], stddev=0.1))
+    'wd1': tf.Variable(tf.truncated_normal([int((image_width / 4) * (image_height / 4) * 64), fc_size], stddev=0.1)),
+     # 1024 inputs, n_classes outputs (class prediction)
+    'out': tf.Variable(tf.truncated_normal([fc_size, n_classes], stddev=0.1))
 }
 
 
@@ -187,23 +165,14 @@ weights_copy = {
     'out': tf.Variable(weights['out'].initialized_value())
 }
 
-'''
-biases = {
-    'bc1': tf.Variable(tf.random_normal([32])),
-    'bc2': tf.Variable(tf.random_normal([64])),
-    'bd1': tf.Variable(tf.random_normal([1024])),
-    'out': tf.Variable(tf.random_normal([n_classes]))
-}
-'''
-
 def string_length(t):
   return tf.py_func(lambda p: [len(x) for x in p], [t], [tf.int64])[0]
  
   
 def input_data(start_index, amount, shuffle):
     
-#    data_folder = '/media/sf_vb-shared/data/'
-    data_folder = './data/'     
+    data_folder = '/media/sf_vb-shared/data/'
+#    data_folder = './data/'     
     range_queue = tf.train.range_input_producer(amount, shuffle = shuffle)
 
     range_value = range_queue.dequeue()
@@ -275,10 +244,12 @@ def weights_change_summary():
     wc2 = weights_change(weights['wc2'], weights_copy['wc2'])
     wd1 = weights_change(weights['wd1'], weights_copy['wd1'])
     out = weights_change(weights['out'], weights_copy['out'])        
-    tf.scalar_summary('wc1', wc1)                          
-    tf.scalar_summary('wc2', wc2)
-    tf.scalar_summary('wd1', wd1)                          
-    tf.scalar_summary('out', out)                          
+    l = []
+    l.append(tf.summary.scalar('wc1', wc1)) 
+    l.append(tf.summary.scalar('wc2', wc2))
+    l.append(tf.summary.scalar('wd1', wd1))                         
+    l.append(tf.summary.scalar('out', out))
+    return tf.summary.merge(l)                         
     
 x, y = input_data(0, train_amount, shuffle = True)
 
@@ -345,14 +316,18 @@ pred1 = tf.round(tf.sigmoid(conv_net(x1_batch, weights, biases, keep_prob)))
 correct_pred = tf.equal(pred1, y1_batch)
 accuracy = tf.reduce_mean(tf.cast(correct_pred, tf.float32))
 
-accuracy_summary = tf.scalar_summary('accuracy', accuracy_ph)    
+
+accuracy_summary = tf.summary.scalar('accuracy', accuracy_ph)    
 accuracy_value = 0
 
-def test_accuracy():
-    global accuracy_value
+def test_accuracy(iteration, total):
+    global accuracy_value    
+    epoch = int(iteration / train_amount)
+    done = int((iteration * 100) / total) 
+    batch = iteration % train_amount;
     acc = sess.run(accuracy, feed_dict = {keep_prob: 1.0} )    
     accuracy_value = acc
-    print("Testing Accuracy:", acc)    
+    print(str(done) + "% done" + ", epoch " + str(epoch) + ", batch " + str(batch) + ", testing accuracy:" + str(acc))
 
 grid = tf_visualization.put_kernels_on_color_grid (weights['wc1'], grid_Y = 4, grid_X = 8)
 grid_orig = tf_visualization.put_kernels_on_color_grid (weights_copy['wc1'], grid_Y = 4, grid_X = 8)
@@ -363,10 +338,10 @@ grid_orig = tf_visualization.put_kernels_on_color_grid (weights_copy['wc1'], gri
 
 sess = tf.Session()
 
-train_writer = tf.train.SummaryWriter('./train',  sess.graph)
+train_writer = tf.summary.FileWriter('./train',  sess.graph)
 
 # Initializing the variables
-init = tf.initialize_all_variables()
+init = tf.global_variables_initializer()
     
 sess.run(init)
 
@@ -383,22 +358,43 @@ array = sess.run(weights['wd1'])
 fname = 'wd1first.csv'
 numpy.savetxt(fname, array.flatten(), "%10.10f")
 '''
-weights_change_summary()
 
-wc1_summary = tf.image_summary('conv1/features', grid, max_images = 1)    
-wc1_summary_orig = tf.image_summary('conv1orig', grid_orig, max_images = 1)    
-all_summaries = tf.merge_all_summaries()
+
+const_summaries = []
+
+const_summaries.append(tf.summary.scalar('kernel size', tf.constant(kernel_size)))
+const_summaries.append(tf.summary.scalar('fully connected layer', tf.constant(kernel_size))) 
+const_summaries.append(tf.summary.scalar('keep probablility(no drop out probability', tf.constant(kernel_size)))
+
+const_summary = tf.summary.merge(const_summaries)
+
+#write const summaries
+
+const_summary_result = sess.run(const_summary)
+train_writer.add_summary(const_summary_result)    
+
+#_, summary = sess.run([optimizer, wc1_summary], feed_dict = {keep_prob: dropout} )
+# _ = sess.run([optimizer], feed_dict = {keep_prob: dropout} )
+# print((i * 100) / iterations, "% done" )    
+        
+train_summaries = []
+
+train_summaries.append(weights_change_summary())
+train_summaries.append(tf.summary.image('conv1/features', grid, max_outputs = 1))
+train_summaries.append(tf.summary.image('conv1orig', grid_orig, max_outputs = 1))
+
+train_summary = tf.summary.merge(train_summaries)
 
 for i in range(iterations):
 
     if i % 10 == 0:
         
         #print("Minibatch Loss= " + "{:.6f}".format(c))        
-        test_accuracy()
+        test_accuracy(i, iterations)
  
     #_, c, _, summary = sess.run([optimizer, cost, learning_rate, wc1_summary], feed_dict = {keep_prob: dropout} )
     #  _, _, summary = sess.run([optimizer, learning_rate, wc1_summary], feed_dict = {keep_prob: dropout} )
-    _, s = sess.run([optimizer, all_summaries], feed_dict = {keep_prob: dropout, accuracy_ph: accuracy_value } )
+    _, s = sess.run([optimizer, train_summary], feed_dict = {keep_prob: dropout, accuracy_ph: accuracy_value } )
     #_, summary = sess.run([optimizer, wc1_summary], feed_dict = {keep_prob: dropout} )
     # _ = sess.run([optimizer], feed_dict = {keep_prob: dropout} )
     # print((i * 100) / iterations, "% done" )    
