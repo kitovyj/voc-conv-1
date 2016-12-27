@@ -58,16 +58,19 @@ parser = argparse.ArgumentParser()
 
 parser.add_argument('--kernel-size', dest = 'kernel_size', type = int, default = 5)
 parser.add_argument('--fc-size', dest = 'fc_size', type = int, default = 1024, help = 'fully connected layer size')
+parser.add_argument('--fc-num', dest = 'fc_num', type = int, default = 1, help = 'fully connected layers number')
+parser.add_argument('--learning-rate', dest = 'learning_rate', type = float, default = 0.0001, help = 'learning rate')
 
 args = parser.parse_args()
 
 kernel_size = args.kernel_size
 fc_size = args.fc_size
+hidden_layers_n = args.fc_num
 
 # Parameters
 #learning_rate = 0.000005
 #learning_rate = 0.0005
-learning_rate = 0.0001
+learning_rate = args.learning_rate
 
 image_width = 100
 image_height = 100
@@ -79,7 +82,6 @@ image_height = 100
 n_input = image_width * image_height 
 n_classes = 9 # Mtotal classes
 dropout = 1.0 # Dropout, probability to keep units
-
 
 train_amount = 50000
 
@@ -127,21 +129,26 @@ def conv_net(x, weights, biases, dropout):
 
     # Fully connected layer
     # Reshape conv2 output to fit fully connected layer input
-    fc1 = tf.reshape(conv2, [-1, weights['wd1'].get_shape().as_list()[0]])
-    fc1 = tf.add(tf.matmul(fc1, weights['wd1']), biases['bd1'])
-    fc1 = tf.nn.relu(fc1)
-    # Apply Dropout
-    fc1 = tf.nn.dropout(fc1, dropout)
+    fc = tf.reshape(conv2, [-1, weights['wd'][0].get_shape().as_list()[0]])
+
+
+
+    for i in range(hidden_layers_n):
+        fc = tf.add(tf.matmul(fc, weights['wd'][i]), biases['bd'][i])
+        fc = tf.nn.relu(fc)
+        # Apply Dropout
+        fc = tf.nn.dropout(fc, dropout)
+
 
     # Output, class prediction
-    out = tf.add(tf.matmul(fc1, weights['out']), biases['out'])
+    out = tf.add(tf.matmul(fc, weights['out']), biases['out'])
     return out
 
 
 biases = {
     'bc1': tf.Variable(tf.zeros([32])),
     'bc2': tf.Variable(tf.constant(0.1, shape=[64], dtype=tf.float32)),
-    'bd1': tf.Variable(tf.constant(0.1, shape=[fc_size])),
+    'bd': [],
     'out': tf.Variable(tf.constant(0.1, shape=[n_classes]))
 }
 
@@ -153,7 +160,7 @@ weights = {
     # 5x5 conv, 32 inputs, 64 outputs
     'wc2': tf.Variable(tf.truncated_normal([kernel_size, kernel_size, 32, 64], stddev=0.1, seed = 1)),
     # fully connected, 7*7*64 inputs, 1024 outputs
-    'wd1': tf.Variable(tf.truncated_normal([int((image_width / 4) * (image_height / 4) * 64), fc_size], stddev=0.1, seed = 1)),
+    'wd': [],
      # 1024 inputs, n_classes outputs (class prediction)
     'out': tf.Variable(tf.truncated_normal([fc_size, n_classes], stddev=0.1, seed = 1))
 }
@@ -162,9 +169,18 @@ weights = {
 weights_copy = {
     'wc1': tf.Variable(weights['wc1'].initialized_value()),
     'wc2': tf.Variable(weights['wc2'].initialized_value()),
-    'wd1': tf.Variable(weights['wd1'].initialized_value()),
+    'wd': [],
     'out': tf.Variable(weights['out'].initialized_value())
 }
+
+for i in range(hidden_layers_n):
+  if i == 0:
+     weights['wd'].append(tf.Variable(tf.truncated_normal([int((image_width / 4) * (image_height / 4) * 64), fc_size], stddev=0.1, seed = 1)))
+  else:
+     weights['wd'].append(tf.Variable(tf.truncated_normal([fc_size, fc_size], stddev=0.1, seed = 1)))
+
+  biases['bd'].append(tf.Variable(tf.constant(0.1, shape=[fc_size])))
+  weights_copy['wd'].append(tf.Variable(weights['wd'][i].initialized_value()))
 
 def string_length(t):
   return tf.py_func(lambda p: [len(x) for x in p], [t], [tf.int64])[0]
@@ -172,8 +188,8 @@ def string_length(t):
   
 def input_data(start_index, amount, shuffle):
     
-#    data_folder = '/media/sf_vb-shared/data/'
-    data_folder = './data/'     
+    data_folder = '/media/sf_vb-shared/data/'
+#    data_folder = './data/'     
     range_queue = tf.train.range_input_producer(amount, shuffle = shuffle)
 
     range_value = range_queue.dequeue()
@@ -241,14 +257,17 @@ def weights_change(a, b):
     return distance
     
 def weights_change_summary():
+    l = []
     wc1 = weights_change(weights['wc1'], weights_copy['wc1'])
     wc2 = weights_change(weights['wc2'], weights_copy['wc2'])
-    wd1 = weights_change(weights['wd1'], weights_copy['wd1'])
-    out = weights_change(weights['out'], weights_copy['out'])        
-    l = []
-    l.append(tf.summary.scalar('wc1', wc1)) 
+
+    for i in range(hidden_layers_n):
+        wd = weights_change(weights['wd'][i], weights_copy['wd'][i])
+        l.append(tf.summary.scalar('wd' + str(i + 1), wd))
+
+    out = weights_change(weights['out'], weights_copy['out'])
+    l.append(tf.summary.scalar('wc1', wc1))
     l.append(tf.summary.scalar('wc2', wc2))
-    l.append(tf.summary.scalar('wd1', wd1))                         
     l.append(tf.summary.scalar('out', out))
     return tf.summary.merge(l)                         
     
@@ -317,8 +336,6 @@ pred1 = tf.round(tf.sigmoid(conv_net(x1_batch, weights, biases, keep_prob)))
 correct_pred = tf.equal(pred1, y1_batch)
 accuracy = tf.reduce_mean(tf.cast(correct_pred, tf.float32))
 
-
-accuracy_summary = tf.summary.scalar('accuracy', accuracy_ph)    
 accuracy_value = 0
 
 def test_accuracy(iteration, total):
@@ -384,6 +401,8 @@ train_summaries = []
 train_summaries.append(weights_change_summary())
 train_summaries.append(tf.summary.image('conv1/features', grid, max_outputs = 1))
 train_summaries.append(tf.summary.image('conv1orig', grid_orig, max_outputs = 1))
+train_summaries.append(tf.summary.scalar('accuracy', accuracy_ph))
+
 
 train_summary = tf.summary.merge(train_summaries)
 
@@ -394,21 +413,28 @@ print("fully connected layer size: " + str(fc_size))
 print("kernel size: " + str(kernel_size))
 print("keep probability(1 - drop out probability): " + str(dropout))
 
+total_summary_records = 500
+summary_interval = int(max(iterations / total_summary_records, 1))
+
+print("summary interval: " + str(summary_interval))
+
 for i in range(iterations):
 
-    if i % 50 == 0:
+    if i % summary_interval == 0:
         
         #print("Minibatch Loss= " + "{:.6f}".format(c))        
         test_accuracy(i, iterations)
  
     #_, c, _, summary = sess.run([optimizer, cost, learning_rate, wc1_summary], feed_dict = {keep_prob: dropout} )
     #  _, _, summary = sess.run([optimizer, learning_rate, wc1_summary], feed_dict = {keep_prob: dropout} )
-    _, s = sess.run([optimizer, train_summary], feed_dict = {keep_prob: dropout, accuracy_ph: accuracy_value } )
+    _ = sess.run([optimizer], feed_dict = { keep_prob: dropout } )
     #_, summary = sess.run([optimizer, wc1_summary], feed_dict = {keep_prob: dropout} )
     # _ = sess.run([optimizer], feed_dict = {keep_prob: dropout} )
     # print((i * 100) / iterations, "% done" )    
-        
-    train_writer.add_summary(s)    
+
+    if i % summary_interval == 0:
+       s = sess.run(train_summary, feed_dict = { accuracy_ph: accuracy_value })
+       train_writer.add_summary(s)
     
     '''
     array = sess.run(weights['wc2'])
