@@ -83,7 +83,7 @@ n_input = image_width * image_height
 n_classes = 9 # Mtotal classes
 dropout = 1.0 # Dropout, probability to keep units
 
-train_amount = 50000
+train_amount = 150000
 
 epochs = 10
 
@@ -188,8 +188,8 @@ def string_length(t):
   
 def input_data(start_index, amount, shuffle):
     
-    data_folder = '/media/sf_vb-shared/data/'
-#    data_folder = './data/'     
+#    data_folder = '/media/sf_vb-shared/data/'
+    data_folder = './data/'     
     range_queue = tf.train.range_input_producer(amount, shuffle = shuffle)
 
     range_value = range_queue.dequeue()
