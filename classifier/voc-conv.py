@@ -60,12 +60,14 @@ parser.add_argument('--kernel-size', dest = 'kernel_size', type = int, default =
 parser.add_argument('--fc-size', dest = 'fc_size', type = int, default = 1024, help = 'fully connected layer size')
 parser.add_argument('--fc-num', dest = 'fc_num', type = int, default = 1, help = 'fully connected layers number')
 parser.add_argument('--learning-rate', dest = 'learning_rate', type = float, default = 0.0001, help = 'learning rate')
+parser.add_argument('--initial-weights-seed', dest = 'initial_weights_seed', type = int, default = None, help = 'initial weights seed')
 
 args = parser.parse_args()
 
 kernel_size = args.kernel_size
 fc_size = args.fc_size
 hidden_layers_n = args.fc_num
+initial_weights_seed = args.initial_weights_seed
 
 # Parameters
 #learning_rate = 0.000005
@@ -156,13 +158,13 @@ biases = {
 # Store layers weight & bias
 weights = {
     # 5x5 conv, 1 input, 32 outputs
-    'wc1': tf.Variable(tf.truncated_normal([kernel_size, kernel_size, 1, 32], stddev=0.1, seed = 1)),
+    'wc1': tf.Variable(tf.truncated_normal([kernel_size, kernel_size, 1, 32], stddev=0.1, seed = initial_weights_seed)),
     # 5x5 conv, 32 inputs, 64 outputs
-    'wc2': tf.Variable(tf.truncated_normal([kernel_size, kernel_size, 32, 64], stddev=0.1, seed = 1)),
+    'wc2': tf.Variable(tf.truncated_normal([kernel_size, kernel_size, 32, 64], stddev=0.1, seed = initial_weights_seed)),
     # fully connected, 7*7*64 inputs, 1024 outputs
     'wd': [],
      # 1024 inputs, n_classes outputs (class prediction)
-    'out': tf.Variable(tf.truncated_normal([fc_size, n_classes], stddev=0.1, seed = 1))
+    'out': tf.Variable(tf.truncated_normal([fc_size, n_classes], stddev=0.1, seed = initial_weights_seed))
 }
 
 
@@ -175,9 +177,9 @@ weights_copy = {
 
 for i in range(hidden_layers_n):
   if i == 0:
-     weights['wd'].append(tf.Variable(tf.truncated_normal([int((image_width / 4) * (image_height / 4) * 64), fc_size], stddev=0.1, seed = 1)))
+     weights['wd'].append(tf.Variable(tf.truncated_normal([int((image_width / 4) * (image_height / 4) * 64), fc_size], stddev=0.1, seed = initial_weights_seed)))
   else:
-     weights['wd'].append(tf.Variable(tf.truncated_normal([fc_size, fc_size], stddev=0.1, seed = 1)))
+     weights['wd'].append(tf.Variable(tf.truncated_normal([fc_size, fc_size], stddev=0.1, seed = initial_weights_seed)))
 
   biases['bd'].append(tf.Variable(tf.constant(0.1, shape=[fc_size])))
   weights_copy['wd'].append(tf.Variable(weights['wd'][i].initialized_value()))
@@ -189,7 +191,7 @@ def string_length(t):
 def input_data(start_index, amount, shuffle):
     
 #    data_folder = '/media/sf_vb-shared/data/'
-    data_folder = './data/'     
+    data_folder = './data/'
     range_queue = tf.train.range_input_producer(amount, shuffle = shuffle)
 
     range_value = range_queue.dequeue()
@@ -412,6 +414,7 @@ print("starting learning session")
 print("fully connected layer size: " + str(fc_size))
 print("kernel size: " + str(kernel_size))
 print("keep probability(1 - drop out probability): " + str(dropout))
+print("initial weights seed: " + str(initial_weights_seed))
 
 total_summary_records = 500
 summary_interval = int(max(iterations / total_summary_records, 1))
@@ -424,7 +427,11 @@ for i in range(iterations):
         
         #print("Minibatch Loss= " + "{:.6f}".format(c))        
         test_accuracy(i, iterations)
- 
+
+    if i % summary_interval == 0:
+       s = sess.run(train_summary, feed_dict = { accuracy_ph: accuracy_value })
+       train_writer.add_summary(s)
+
     #_, c, _, summary = sess.run([optimizer, cost, learning_rate, wc1_summary], feed_dict = {keep_prob: dropout} )
     #  _, _, summary = sess.run([optimizer, learning_rate, wc1_summary], feed_dict = {keep_prob: dropout} )
     _ = sess.run([optimizer], feed_dict = { keep_prob: dropout } )
@@ -432,10 +439,6 @@ for i in range(iterations):
     # _ = sess.run([optimizer], feed_dict = {keep_prob: dropout} )
     # print((i * 100) / iterations, "% done" )    
 
-    if i % summary_interval == 0:
-       s = sess.run(train_summary, feed_dict = { accuracy_ph: accuracy_value })
-       train_writer.add_summary(s)
-    
     '''
     array = sess.run(weights['wc2'])
     fname = 'conv' + str(i).zfill(9) + '.csv'
@@ -456,6 +459,9 @@ numpy.savetxt(fname, array.flatten(), "%10.10f")
 '''
                                              
 test_accuracy(iterations, iterations)
+
+s = sess.run(train_summary, feed_dict = { accuracy_ph: accuracy_value })
+train_writer.add_summary(s)
 
 end_time = time.time()
 passed = end_time - start_time
