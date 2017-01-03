@@ -61,6 +61,7 @@ parser.add_argument('--fc-size', dest = 'fc_size', type = int, default = 1024, h
 parser.add_argument('--fc-num', dest = 'fc_num', type = int, default = 1, help = 'fully connected layers number')
 parser.add_argument('--learning-rate', dest = 'learning_rate', type = float, default = 0.0001, help = 'learning rate')
 parser.add_argument('--initial-weights-seed', dest = 'initial_weights_seed', type = int, default = None, help = 'initial weights seed')
+parser.add_argument('--dropout', dest = 'dropout', type = float, default = 0.0, help = 'drop out probability')
 
 args = parser.parse_args()
 
@@ -73,6 +74,7 @@ initial_weights_seed = args.initial_weights_seed
 #learning_rate = 0.000005
 #learning_rate = 0.0005
 learning_rate = args.learning_rate
+dropout = args.dropout # Dropout, probability to drop units out
 
 image_width = 100
 image_height = 100
@@ -83,7 +85,6 @@ image_height = 100
 # Network Parameters
 n_input = image_width * image_height 
 n_classes = 9 # Mtotal classes
-dropout = 1.0 # Dropout, probability to keep units
 
 train_amount = 150000
 
@@ -97,7 +98,7 @@ eval_batch_size = n_classes * 100
 #x = tf.placeholder(tf.float32, [None, n_input])
 #y = tf.placeholder(tf.float32, [None, n_classes])
 
-keep_prob = tf.placeholder(tf.float32) #dropout (keep probability)
+dropout_ph = tf.placeholder(tf.float32) #dropout (keep probability)
 accuracy_ph = tf.placeholder(tf.float32) #dropout (keep probability)
 
 # Create some wrappers for simplicity
@@ -139,7 +140,7 @@ def conv_net(x, weights, biases, dropout):
         fc = tf.add(tf.matmul(fc, weights['wd'][i]), biases['bd'][i])
         fc = tf.nn.relu(fc)
         # Apply Dropout
-        fc = tf.nn.dropout(fc, dropout)
+        fc = tf.nn.dropout(fc, 1.0 - dropout)
 
 
     # Output, class prediction
@@ -282,7 +283,7 @@ y.set_shape([n_classes])
 x_batch, y_batch = tf.train.batch([x, y], batch_size = batch_size)
 
 # Construct model
-pred = conv_net(x_batch, weights, biases, keep_prob)
+pred = conv_net(x_batch, weights, biases, dropout_ph)
 
 # Define loss and optimizer
 cost = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(pred, y_batch))
@@ -330,7 +331,7 @@ x1.set_shape([image_height * image_width])
 y1.set_shape([n_classes])
 
 x1_batch, y1_batch = tf.train.batch([x1, y1], batch_size = eval_batch_size)
-pred1 = tf.round(tf.sigmoid(conv_net(x1_batch, weights, biases, keep_prob)))
+pred1 = tf.round(tf.sigmoid(conv_net(x1_batch, weights, biases, dropout_ph)))
 #y1_batch = tf.Print(y1_batch, [y1_batch], 'label', summarize = 30)
 #pred1 = tf.Print(pred1, [pred1], 'pred ', summarize = 30)
 #correct_pred = tf.equal(tf.argmax(pred1, 1), tf.argmax(y1_batch, 1))
@@ -346,7 +347,7 @@ def test_accuracy(iteration, total):
     epoch = int(iteration / batches_per_epoch)
     done = int((iteration * 100) / total) 
     batch = int(iteration % batches_per_epoch);
-    acc = sess.run(accuracy, feed_dict = {keep_prob: 1.0} )    
+    acc = sess.run(accuracy, feed_dict = {dropout_ph: 0.0} )
     accuracy_value = acc
     print(str(done) + "% done" + ", epoch " + str(epoch) + ", batches: " + str(batch) + ", testing accuracy: " + str(acc))
 
@@ -385,7 +386,7 @@ const_summaries = []
 
 const_summaries.append(tf.summary.scalar('kernel size', tf.constant(kernel_size)))
 const_summaries.append(tf.summary.scalar('fully connected layer', tf.constant(fc_size)))
-const_summaries.append(tf.summary.scalar('keep probablility(no drop out probability)', tf.constant(dropout)))
+const_summaries.append(tf.summary.scalar('dropout probablility', tf.constant(dropout)))
 
 const_summary = tf.summary.merge(const_summaries)
 
@@ -413,7 +414,7 @@ start_time = time.time()
 print("starting learning session")
 print("fully connected layer size: " + str(fc_size))
 print("kernel size: " + str(kernel_size))
-print("keep probability(1 - drop out probability): " + str(dropout))
+print("dropout probability: " + str(dropout))
 print("initial weights seed: " + str(initial_weights_seed))
 
 total_summary_records = 500
@@ -434,7 +435,7 @@ for i in range(iterations):
 
     #_, c, _, summary = sess.run([optimizer, cost, learning_rate, wc1_summary], feed_dict = {keep_prob: dropout} )
     #  _, _, summary = sess.run([optimizer, learning_rate, wc1_summary], feed_dict = {keep_prob: dropout} )
-    _ = sess.run([optimizer], feed_dict = { keep_prob: dropout } )
+    _ = sess.run([optimizer], feed_dict = { dropout_ph: dropout } )
     #_, summary = sess.run([optimizer, wc1_summary], feed_dict = {keep_prob: dropout} )
     # _ = sess.run([optimizer], feed_dict = {keep_prob: dropout} )
     # print((i * 100) / iterations, "% done" )    
