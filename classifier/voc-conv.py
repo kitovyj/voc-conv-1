@@ -62,6 +62,7 @@ parser.add_argument('--fc-num', dest = 'fc_num', type = int, default = 1, help =
 parser.add_argument('--learning-rate', dest = 'learning_rate', type = float, default = 0.0001, help = 'learning rate')
 parser.add_argument('--initial-weights-seed', dest = 'initial_weights_seed', type = int, default = None, help = 'initial weights seed')
 parser.add_argument('--dropout', dest = 'dropout', type = float, default = 0.0, help = 'drop out probability')
+parser.add_argument('--epochs', dest = 'epochs', type = int, default = 20, help = 'number of training epochs')
 
 args = parser.parse_args()
 
@@ -75,6 +76,7 @@ initial_weights_seed = args.initial_weights_seed
 #learning_rate = 0.0005
 learning_rate = args.learning_rate
 dropout = args.dropout # Dropout, probability to drop units out
+epochs = args.epochs
 
 image_width = 100
 image_height = 100
@@ -87,8 +89,6 @@ n_input = image_width * image_height
 n_classes = 9 # Mtotal classes
 
 train_amount = 150000
-
-epochs = 10
 
 batch_size = 64
 
