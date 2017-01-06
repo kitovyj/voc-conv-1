@@ -62,7 +62,7 @@ parser.add_argument('--fc-num', dest = 'fc_num', type = int, default = 1, help =
 parser.add_argument('--learning-rate', dest = 'learning_rate', type = float, default = 0.0001, help = 'learning rate')
 parser.add_argument('--initial-weights-seed', dest = 'initial_weights_seed', type = int, default = None, help = 'initial weights seed')
 parser.add_argument('--dropout', dest = 'dropout', type = float, default = 0.0, help = 'drop out probability')
-parser.add_argument('--epochs', dest = 'epochs', type = int, default = 20, help = 'number of training epochs')
+parser.add_argument('--epochs', dest = 'epochs', type = int, default = 40, help = 'number of training epochs')
 
 args = parser.parse_args()
 
@@ -387,6 +387,8 @@ const_summaries = []
 const_summaries.append(tf.summary.scalar('kernel size', tf.constant(kernel_size)))
 const_summaries.append(tf.summary.scalar('fully connected layer', tf.constant(fc_size)))
 const_summaries.append(tf.summary.scalar('dropout probablility', tf.constant(dropout)))
+const_summaries.append(tf.summary.scalar('epochs', tf.constant(epochs)))
+const_summaries.append(tf.summary.scalar('train amount', tf.constant(train_amount)))
 
 const_summary = tf.summary.merge(const_summaries)
 
@@ -416,6 +418,8 @@ print("fully connected layer size: " + str(fc_size))
 print("kernel size: " + str(kernel_size))
 print("dropout probability: " + str(dropout))
 print("initial weights seed: " + str(initial_weights_seed))
+print("train amount: " + str(train_amount))
+print("epochs: " + str(epochs))
 
 total_summary_records = 500
 summary_interval = int(max(iterations / total_summary_records, 1))
