@@ -57,17 +57,18 @@ import time
 parser = argparse.ArgumentParser()
 
 parser.add_argument('--kernel-size', dest = 'kernel_size', type = int, default = 5)
-parser.add_argument('--fc-size', dest = 'fc_size', type = int, default = 1024, help = 'fully connected layer size')
+parser.add_argument('--fc-sizes', dest = 'fc_sizes', type = int, nargs = '+', default = 1024, help = 'fully connected layer size')
 parser.add_argument('--fc-num', dest = 'fc_num', type = int, default = 1, help = 'fully connected layers number')
 parser.add_argument('--learning-rate', dest = 'learning_rate', type = float, default = 0.0001, help = 'learning rate')
 parser.add_argument('--initial-weights-seed', dest = 'initial_weights_seed', type = int, default = None, help = 'initial weights seed')
 parser.add_argument('--dropout', dest = 'dropout', type = float, default = 0.0, help = 'drop out probability')
 parser.add_argument('--epochs', dest = 'epochs', type = int, default = 40, help = 'number of training epochs')
+parser.add_argument('--train-amount', dest = 'train_amount', type = int, default = 10000, help = 'number of training epochs')
 
 args = parser.parse_args()
 
 kernel_size = args.kernel_size
-fc_size = args.fc_size
+fc_sizes = args.fc_sizes
 hidden_layers_n = args.fc_num
 initial_weights_seed = args.initial_weights_seed
 
@@ -77,6 +78,7 @@ initial_weights_seed = args.initial_weights_seed
 learning_rate = args.learning_rate
 dropout = args.dropout # Dropout, probability to drop units out
 epochs = args.epochs
+train_amount = args.train_amount
 
 image_width = 100
 image_height = 100
@@ -87,8 +89,6 @@ image_height = 100
 # Network Parameters
 n_input = image_width * image_height 
 n_classes = 1 # Mtotal classes
-
-train_amount = 10000
 
 batch_size = 64
 
@@ -165,7 +165,7 @@ weights = {
     # fully connected, 7*7*64 inputs, 1024 outputs
     'wd': [],
      # 1024 inputs, n_classes outputs (class prediction)
-    'out': tf.Variable(tf.truncated_normal([fc_size, n_classes], stddev=0.1, seed = initial_weights_seed))
+    'out': tf.Variable(tf.truncated_normal([fc_sizes[-1], n_classes], stddev=0.1, seed = initial_weights_seed))
 }
 
 
@@ -178,17 +178,14 @@ weights_copy = {
 
 for i in range(hidden_layers_n):
   if i == 0:
-     weights['wd'].append(tf.Variable(tf.truncated_normal([int((image_width / 4) * (image_height / 4) * 64), fc_size], stddev=0.1, seed = initial_weights_seed)))
+     weights['wd'].append(tf.Variable(tf.truncated_normal([int((image_width / 4) * (image_height / 4) * 64), fc_sizes[i]], stddev=0.1, seed = initial_weights_seed)))
   else:
-     weights['wd'].append(tf.Variable(tf.truncated_normal([fc_size, fc_size], stddev=0.1, seed = initial_weights_seed)))
+     weights['wd'].append(tf.Variable(tf.truncated_normal([fc_sizes[i - 1], fc_sizes[i]], stddev=0.1, seed = initial_weights_seed)))
 
-  biases['bd'].append(tf.Variable(tf.constant(0.1, shape=[fc_size])))
+  biases['bd'].append(tf.Variable(tf.constant(0.1, shape=[fc_sizes[i]])))
   weights_copy['wd'].append(tf.Variable(weights['wd'][i].initialized_value()))
 
-def string_length(t):
-  return tf.py_func(lambda p: [len(x) for x in p], [t], [tf.int64])[0]
- 
-  
+
 def input_data(start_index, amount, shuffle):
     
 #    data_folder = '/media/sf_vb-shared/vocs_data/'
@@ -385,7 +382,10 @@ numpy.savetxt(fname, array.flatten(), "%10.10f")
 const_summaries = []
 
 const_summaries.append(tf.summary.scalar('kernel size', tf.constant(kernel_size)))
-const_summaries.append(tf.summary.scalar('fully connected layer', tf.constant(fc_size)))
+const_summaries.append(tf.summary.scalar('fully connected layers: ', tf.constant(len(fc_sizes))))
+for i in range(len(fc_sizes)):
+    name = 'fully connected layer ' + str(i + 1) + ' size'
+    const_summaries.append(tf.summary.scalar(name, tf.constant(fc_sizes[i])))
 const_summaries.append(tf.summary.scalar('dropout probablility', tf.constant(dropout)))
 const_summaries.append(tf.summary.scalar('epochs', tf.constant(epochs)))
 const_summaries.append(tf.summary.scalar('train amount', tf.constant(train_amount)))
@@ -414,7 +414,9 @@ train_summary = tf.summary.merge(train_summaries)
 start_time = time.time()
 
 print("starting learning session")
-print("fully connected layer size: " + str(fc_size))
+print('fully connected layers: ' + str(len(fc_sizes)))
+for i in range(len(fc_sizes)):
+    print('fully connected layer ' + str(i + 1) + ' size: ' + str(fc_sizes[i]))
 print("kernel size: " + str(kernel_size))
 print("dropout probability: " + str(dropout))
 print("initial weights seed: " + str(initial_weights_seed))
