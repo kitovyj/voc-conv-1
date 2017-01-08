@@ -25,8 +25,9 @@ function voc = generate_vocalizations(varargin)
     
     t = linspace(0, 1, 1000);
         
-    peak_min_amp = max(start_freq, end_freq);
-    peak_max_amp = peak_min_amp + peak_deviation;
+    peak_min_amp = max(start_freq, end_freq) + 5000;
+    peak_max_amp = max(peak_min_amp, 80000);
+    %peak_min_amp + peak_deviation;
     peaks = generate_peaks(start_time, start_freq, start_time + duration, end_freq, peak_min_amp, peak_max_amp, P.peaks_num);
         
     start_point = [start_time; start_freq];
@@ -61,7 +62,8 @@ function voc = generate_vocalizations(varargin)
     nodes = [ nodes, end_point ];
         
     t1 = t*duration + start_time;
-    s = spline(nodes(1, :), [0, nodes(2, :), 0], t1);        
+    %s = spline(nodes(1, :), [0, nodes(2, :), 0], t1);        
+    s = interp1(nodes(1, :), nodes(2, :), t1, 'pchip');        
     points = [t1; s];        
     
     vibrato = P.vibrato_amp * sin(points(1, :) * 2 * pi / vibrato_period);    
