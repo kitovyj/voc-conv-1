@@ -5,6 +5,7 @@ function collect_vocalizations()
     data_path = '.\data\';
     
     count = 0;
+    total_classes = [0, 0];
     
     source_files = strcat(path, '*.wav');
 
@@ -47,7 +48,18 @@ function collect_vocalizations()
             count = count + 1;
 
         end
+        
+        if male == 0
+            total_classes(2) = total_classes(2) + numel(vocs);
+        else
+            total_classes(1) = total_classes(1) + numel(vocs);
+        end
+        
     end    
+    
+    for i = 1:numel(total_classes)
+        fprintf('class %d: %d\n', int32(i), int32(total_classes(i)));        
+    end
     
     % permute
             
