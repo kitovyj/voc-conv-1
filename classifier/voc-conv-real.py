@@ -69,6 +69,10 @@ args = parser.parse_args()
 
 kernel_size = args.kernel_size
 fc_sizes = args.fc_sizes
+
+if not isinstance(fc_sizes, list):
+   fc_sizes = [fc_sizes]
+
 hidden_layers_n = args.fc_num
 initial_weights_seed = args.initial_weights_seed
 
@@ -188,8 +192,8 @@ for i in range(hidden_layers_n):
 
 def input_data(start_index, amount, shuffle):
     
-#    data_folder = '/media/sf_vb-shared/vocs_data/'
-    data_folder = './vocs_data/'
+    data_folder = '/media/sf_vb-shared/vocs_data/'
+#    data_folder = './vocs_data/'
     range_queue = tf.train.range_input_producer(amount, shuffle = shuffle)
 
     range_value = range_queue.dequeue()
@@ -478,7 +482,38 @@ time_spent_summary_result = sess.run(time_spent_summary)
 train_writer.add_summary(time_spent_summary_result)    
 
 print("learning ended, total time spent: " + str(passed) + " s")
-    
+
+# save weights
+
+array = sess.run(weights['wc1'])
+fname = 'wc1.csv'
+numpy.savetxt(fname, array.flatten(), "%10.15f")
+array = sess.run(biases['wc1'])
+fname = 'wc1-biases.csv'
+numpy.savetxt(fname, array.flatten(), "%10.15f")
+
+array = sess.run(weights['wc2'])
+fname = 'wc2.csv'
+numpy.savetxt(fname, array.flatten(), "%10.15f")
+array = sess.run(biases['wc2'])
+fname = 'wc2-biases.csv'
+numpy.savetxt(fname, array.flatten(), "%10.15f")
+
+for i in range(hidden_layers_n):
+    fname = 'fc' + str(i + 1) + '.csv'
+    array = sess.run(weights['wd'][i])
+    numpy.savetxt(name, array.flatten(), "%10.15f")
+    fname = 'fc' + str(i + 1) + '-biases.csv'
+    array = sess.run(biases['wd'][i])
+    numpy.savetxt(name, array.flatten(), "%10.15f")
+
+array = sess.run(weights['out'])
+fname = 'out.csv'
+numpy.savetxt(fname, array.flatten(), "%10.15f")
+array = sess.run(biases['out'])
+fname = 'out-biases.csv'
+numpy.savetxt(fname, array.flatten(), "%10.15f")
+
 coord.request_stop()
 coord.join()
 
