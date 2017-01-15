@@ -192,8 +192,8 @@ for i in range(hidden_layers_n):
 
 def input_data(start_index, amount, shuffle):
     
-    data_folder = '/media/sf_vb-shared/vocs_data/'
-#    data_folder = './vocs_data/'
+#    data_folder = '/media/sf_vb-shared/vocs_data/'
+    data_folder = './vocs_data/'
     range_queue = tf.train.range_input_producer(amount, shuffle = shuffle)
 
     range_value = range_queue.dequeue()
