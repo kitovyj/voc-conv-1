@@ -53,6 +53,8 @@ import tensorflow as tf
 import tf_visualization
 import argparse
 import time
+import os
+import datetime
 
 parser = argparse.ArgumentParser()
 
@@ -386,7 +388,7 @@ numpy.savetxt(fname, array.flatten(), "%10.10f")
 const_summaries = []
 
 const_summaries.append(tf.summary.scalar('kernel size', tf.constant(kernel_size)))
-const_summaries.append(tf.summary.scalar('fully connected layers: ', tf.constant(len(fc_sizes))))
+const_summaries.append(tf.summary.scalar('fully connected layers', tf.constant(len(fc_sizes))))
 for i in range(len(fc_sizes)):
     name = 'fully connected layer ' + str(i + 1) + ' size'
     const_summaries.append(tf.summary.scalar(name, tf.constant(fc_sizes[i])))
@@ -485,34 +487,62 @@ print("learning ended, total time spent: " + str(passed) + " s")
 
 # save weights
 
+print("saving weights...")
+
+weights_summaries = []
+
+weights_summaries.append(tf.summary.tensor_summary('c1-weights', weights['wc1']))
+weights_summaries.append(tf.summary.tensor_summary('c1-biases', biases['bc1']))
+weights_summaries.append(tf.summary.tensor_summary('c2-weights', weights['wc2']))
+weights_summaries.append(tf.summary.tensor_summary('c2-biases', biases['bc2']))
+for i in range(hidden_layers_n):
+    wname = 'f' + str(i + 1) + '-weights'
+    bname = 'f' + str(i + 1) + '-biases'
+    weights_summaries.append(tf.summary.tensor_summary(wname, weights['wd'][i]))
+    weights_summaries.append(tf.summary.tensor_summary(bname, biases['bd'][i]))
+weights_summaries.append(tf.summary.tensor_summary('out-weights', weights['out']))
+weights_summaries.append(tf.summary.tensor_summary('out-biases', biases['out']))
+
+weights_summary = tf.summary.merge(weights_summaries)
+
+weights_summary_result = sess.run(weights_summary)
+train_writer.add_summary(weights_summary_result)
+
+
+'''
+import os, datetime
+mydir = os.path.join(os.getcwd(), weights-datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S'))
+os.makedirs(mydir)
+
 array = sess.run(weights['wc1'])
 fname = 'c1.csv'
-numpy.savetxt(fname, array.flatten(), "%10.15f")
+numpy.savetxt(fname, array.flatten(), "%10.20f")
 array = sess.run(biases['bc1'])
 fname = 'c1-biases.csv'
-numpy.savetxt(fname, array.flatten(), "%10.15f")
+numpy.savetxt(fname, array.flatten(), "%10.20f")
 
 array = sess.run(weights['wc2'])
 fname = 'c2.csv'
-numpy.savetxt(fname, array.flatten(), "%10.15f")
+numpy.savetxt(fname, array.flatten(), "%10.20f")
 array = sess.run(biases['bc2'])
 fname = 'c2-biases.csv'
-numpy.savetxt(fname, array.flatten(), "%10.15f")
+numpy.savetxt(fname, array.flatten(), "%10.20f")
 
 for i in range(hidden_layers_n):
     fname = 'f' + str(i + 1) + '.csv'
     array = sess.run(weights['wd'][i])
-    numpy.savetxt(name, array.flatten(), "%10.15f")
+    numpy.savetxt(name, array.flatten(), "%10.20f")
     fname = 'f' + str(i + 1) + '-biases.csv'
     array = sess.run(biases['bd'][i])
-    numpy.savetxt(name, array.flatten(), "%10.15f")
+    numpy.savetxt(name, array.flatten(), "%10.20f")
 
 array = sess.run(weights['out'])
 fname = 'out.csv'
-numpy.savetxt(fname, array.flatten(), "%10.15f")
+numpy.savetxt(fname, array.flatten(), "%10.20f")
 array = sess.run(biases['out'])
 fname = 'out-biases.csv'
-numpy.savetxt(fname, array.flatten(), "%10.15f")
+numpy.savetxt(fname, array.flatten(), "%10.20f")
+'''
 
 coord.request_stop()
 coord.join()
