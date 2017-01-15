@@ -486,25 +486,25 @@ print("learning ended, total time spent: " + str(passed) + " s")
 # save weights
 
 array = sess.run(weights['wc1'])
-fname = 'wc1.csv'
+fname = 'c1.csv'
 numpy.savetxt(fname, array.flatten(), "%10.15f")
-array = sess.run(biases['wc1'])
-fname = 'wc1-biases.csv'
+array = sess.run(biases['bc1'])
+fname = 'c1-biases.csv'
 numpy.savetxt(fname, array.flatten(), "%10.15f")
 
 array = sess.run(weights['wc2'])
-fname = 'wc2.csv'
+fname = 'c2.csv'
 numpy.savetxt(fname, array.flatten(), "%10.15f")
-array = sess.run(biases['wc2'])
-fname = 'wc2-biases.csv'
+array = sess.run(biases['bc2'])
+fname = 'c2-biases.csv'
 numpy.savetxt(fname, array.flatten(), "%10.15f")
 
 for i in range(hidden_layers_n):
-    fname = 'fc' + str(i + 1) + '.csv'
+    fname = 'f' + str(i + 1) + '.csv'
     array = sess.run(weights['wd'][i])
     numpy.savetxt(name, array.flatten(), "%10.15f")
-    fname = 'fc' + str(i + 1) + '-biases.csv'
-    array = sess.run(biases['wd'][i])
+    fname = 'f' + str(i + 1) + '-biases.csv'
+    array = sess.run(biases['bd'][i])
     numpy.savetxt(name, array.flatten(), "%10.15f")
 
 array = sess.run(weights['out'])
