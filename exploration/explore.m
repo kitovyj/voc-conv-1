@@ -6,11 +6,14 @@ function explore()
 
     files = dir(source_files);
 
+    count = numel(files);
+
     duration_sum = [0, 0];
     total_classes = [0, 0];    
     
-    count = numel(files);
-    
+    durations = { []; []; };
+    frequencies = { []; []; };
+        
     percent = int64(count / 100);
         
     i = 0;
@@ -37,20 +40,31 @@ function explore()
         load(mat_file);
         labels = csvread(csv_file);
         
-        class_num = int32(labels(1)) + 1; 
-        duration_sum(class_num) = duration_sum(class_num) + v.Duration;
+        class_num = int32(labels(1)) + 1;
+
+        durations{class_num} = [durations{class_num} v.Duration];
+        %duration_sum(class_num) = duration_sum(class_num) + v.Duration;
         total_classes(class_num) = total_classes(class_num) + 1;
         
-        %v.Duration
-        %labels
-                
+        % compute average frequency
+        
+        spec = v.Spec{1};
+        height = size(spec, 1);
+        coord = linspace(0, height - 1, height)';
+        coord = repmat(coord, 1, size(spec, 2));
+        
+        freq_sums = sum(spec, 1);
+        
+        weighted_coord = spec .* coord;
+        weighted_sums = sum(weighted_coord, 1);
+        avg_freq = mean(weighted_sums ./ freq_sums);
+        
+        frequencies{class_num} = [frequencies{class_num} avg_freq];        
+
     end
+    
+    save('statistics.mat', 'total_classes', 'frequencies', 'durations');
     
     fprintf('\n');
-    
-    avg_duration = duration_sum ./ total_classes;
-    
-    for i = 1:numel(avg_duration)
-        fprintf('average duration: %f\n', avg_duration(i));        
-    end
-    
+
+    analyze();
