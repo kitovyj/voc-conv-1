@@ -1,4 +1,4 @@
 for f in *.csv
 do
-  truncate -s 17 $f
+  truncate -s 1 $f
 done

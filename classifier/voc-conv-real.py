@@ -36,8 +36,7 @@ https://www.snip2code.com/Snippet/1104315/Tensorflow---visualize-convolutional-f
 
 softmax_cross_entropy_with_logits and sparce_softmax_cross_entropy_with_logits diference:
 http://stackoverflow.com/questions/37312421/tensorflow-whats-the-difference-between-sparse-softmax-cross-entropy-with-logi
-
-L1 and L2 regularizations explained:
+                                                                                L1 and L2 regularizations explained:
 https://www.quora.com/What-is-the-difference-between-L1-and-L2-regularization
 
 independent and mutex classes:
@@ -65,7 +64,9 @@ parser.add_argument('--learning-rate', dest = 'learning_rate', type = float, def
 parser.add_argument('--initial-weights-seed', dest = 'initial_weights_seed', type = int, default = None, help = 'initial weights seed')
 parser.add_argument('--dropout', dest = 'dropout', type = float, default = 0.0, help = 'drop out probability')
 parser.add_argument('--epochs', dest = 'epochs', type = int, default = 40, help = 'number of training epochs')
-parser.add_argument('--train-amount', dest = 'train_amount', type = int, default = 10000, help = 'number of training epochs')
+parser.add_argument('--train-amount', dest = 'train_amount', type = int, default = 10000, help = 'number of training samples')
+parser.add_argument('--data-path', dest = 'data_path', default = './vocs_data/', help = 'the path where input data are stored')
+parser.add_argument('--test-amount', dest = 'test_amount', type = int, default = 500, help = 'number of test samples')
 
 args = parser.parse_args()
 
@@ -85,6 +86,8 @@ learning_rate = args.learning_rate
 dropout = args.dropout # Dropout, probability to drop units out
 epochs = args.epochs
 train_amount = args.train_amount
+test_amount = args.test_amount
+data_path = args.data_path
 
 image_width = 100
 image_height = 100
@@ -98,7 +101,8 @@ n_classes = 1 # Mtotal classes
 
 batch_size = 64
 
-eval_batch_size = n_classes * 100
+#eval_batch_size = n_classes * 100
+eval_batch_size = test_amount
 
 # tf Graph input
 #x = tf.placeholder(tf.float32, [None, n_input])
@@ -192,25 +196,25 @@ for i in range(hidden_layers_n):
   weights_copy['wd'].append(tf.Variable(weights['wd'][i].initialized_value()))
 
 
-def input_data(start_index, amount, shuffle):
+def input_data(file_name_prefix, amount, shuffle):
     
 #    data_folder = '/media/sf_vb-shared/vocs_data/'
-    data_folder = './vocs_data/'
     range_queue = tf.train.range_input_producer(amount, shuffle = shuffle)
 
-    range_value = range_queue.dequeue()
+    #range_value = range_queue.dequeue()
+    abs_index = range_queue.dequeue()
 
 #    if shuffle == False:
 #    if shuffle == True
 #    range_value = tf.Print(range_value, [range_value], message = "rv: ")            
 
                 
-    abs_index = tf.add(range_value, tf.constant(start_index))
+    #abs_index = tf.add(range_value, tf.constant(start_index))
     
     abs_index_str = tf.as_string(abs_index, width = 9, fill = '0')
     
-    png_file_name = tf.string_join([tf.constant(data_folder), tf.constant('data'), abs_index_str, tf.constant('.png')])
-    csv_file_name = tf.string_join([tf.constant(data_folder), tf.constant('data'), abs_index_str, tf.constant('.csv')])
+    png_file_name = tf.string_join([tf.constant(data_path), tf.constant(file_name_prefix), abs_index_str, tf.constant('.png')])
+    csv_file_name = tf.string_join([tf.constant(data_path), tf.constant(file_name_prefix), abs_index_str, tf.constant('.csv')])
     
 #    if shuffle == False:
 #    png_file_name = tf.Print(png_file_name, [png_file_name], message = "This is file name: ")
@@ -277,7 +281,7 @@ def weights_change_summary():
     l.append(tf.summary.scalar('out', out))
     return tf.summary.merge(l)                         
     
-x, y = input_data(0, train_amount, shuffle = True)
+x, y = input_data('data', train_amount, shuffle = True)
 
 x.set_shape([image_height * image_width])
 y.set_shape([n_classes])
@@ -329,7 +333,7 @@ optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(cost)
 
 # Define evaluation pipeline
 
-x1, y1 = input_data(train_amount, eval_batch_size, shuffle = False)
+x1, y1 = input_data('test', eval_batch_size, shuffle = False)
 x1.set_shape([image_height * image_width])
 y1.set_shape([n_classes])
 
@@ -395,6 +399,7 @@ for i in range(len(fc_sizes)):
 const_summaries.append(tf.summary.scalar('dropout probablility', tf.constant(dropout)))
 const_summaries.append(tf.summary.scalar('epochs', tf.constant(epochs)))
 const_summaries.append(tf.summary.scalar('train amount', tf.constant(train_amount)))
+const_summaries.append(tf.summary.scalar('test amount', tf.constant(test_amount)))
 
 const_summary = tf.summary.merge(const_summaries)
 
@@ -427,7 +432,9 @@ print("kernel size: " + str(kernel_size))
 print("dropout probability: " + str(dropout))
 print("initial weights seed: " + str(initial_weights_seed))
 print("train amount: " + str(train_amount))
+print("test amount: " + str(test_amount))
 print("epochs: " + str(epochs))
+print("data path: " + str(data_path))
 
 total_summary_records = 500
 summary_interval = int(max(iterations / total_summary_records, 1))
