@@ -400,6 +400,11 @@ const_summaries.append(tf.summary.scalar('dropout probablility', tf.constant(dro
 const_summaries.append(tf.summary.scalar('epochs', tf.constant(epochs)))
 const_summaries.append(tf.summary.scalar('train amount', tf.constant(train_amount)))
 const_summaries.append(tf.summary.scalar('test amount', tf.constant(test_amount)))
+const_summaries.append(tf.summary.scalar('learning rate', tf.constant(learning_rate)))
+if initial_weights_seed is None:
+   const_summaries.append(tf.summary.scalar('initial weights seed', tf.constant(-1)))
+else:
+   const_summaries.append(tf.summary.scalar('initial weights seed', tf.constant(initial_weights_seed)))
 
 const_summary = tf.summary.merge(const_summaries)
 
