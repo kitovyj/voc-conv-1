@@ -487,7 +487,7 @@ train_writer.add_summary(s)
 end_time = time.time()
 passed = end_time - start_time
 
-time_spent_summary = tf.summary.scalar('time spent, s', tf.constant(passed))
+time_spent_summary = tf.summary.scalar('time spent', tf.constant(passed))
 time_spent_summary_result = sess.run(time_spent_summary)
 train_writer.add_summary(time_spent_summary_result)
 
