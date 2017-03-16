@@ -1,0 +1,1 @@
+python ./voc-conv-classifier.py --summary-file /media/sf_vb-shared/train-surrogates/events.out.tfevents.1485248253.dnp-computing

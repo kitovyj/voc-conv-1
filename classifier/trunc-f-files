@@ -1,4 +1,4 @@
-for f in *.csv
+for f in f*.csv
 do
   truncate -s-1 $f
 done
