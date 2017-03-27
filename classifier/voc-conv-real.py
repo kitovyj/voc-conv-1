@@ -237,6 +237,11 @@ def input_data(file_name_prefix, amount, shuffle):
 #    unpacked_labels.pop()
     #unpacked_labels[4] = tf.constant(1, dtype = tf.float32);
     #unpacked_labels[5] = tf.constant(1, dtype = tf.float32);
+    random = tf.mod(abs_index, tf.constant(2))
+    random = tf.cast(random, tf.float32)
+    unpacked_labels = []
+    unpacked_labels.append(random)
+
     labels = tf.pack(unpacked_labels)
 #    labels = tf.Print(labels, [labels], message = "These are labels: ")  
 #    print(labels.get_shape())

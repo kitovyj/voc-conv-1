@@ -13,7 +13,7 @@ parser = argparse.ArgumentParser()
 
 parser.add_argument('--fc-sizes', dest = 'fc_sizes', type = int, nargs = '+', default = [16], help = 'fully connected layer size')
 parser.add_argument('--fc-num', dest = 'fc_num', type = int, default = 1, help = 'fully connected layers number')
-parser.add_argument('--learning-rate', dest = 'learning_rate', type = float, default = 0.0001, help = 'learning rate')
+parser.add_argument('--learning-rate', dest = 'learning_rate', type = float, default = 0.001, help = 'learning rate')
 parser.add_argument('--initial-weights-seed', dest = 'initial_weights_seed', type = int, default = None, help = 'initial weights seed')
 parser.add_argument('--dropout', dest = 'dropout', type = float, default = 0.0, help = 'drop out probability')
 parser.add_argument('--epochs', dest = 'epochs', type = int, default = 40, help = 'number of training epochs')
@@ -43,8 +43,8 @@ data_path = args.data_path
 
 # Network Parameters
 n_classes = 1 # Mtotal classes
-#n_data = 9 + 2
-n_data = 2
+n_data = 9 + 2
+#n_data = 2
 
 batch_size = 640
 
@@ -150,7 +150,7 @@ def input_data(file_name_prefix, amount, shuffle):
     #data_value = tf.cond(random > tf.constant(0.7), lambda: unpacked_labels[0], lambda: unpacked_labels[0])
     #data_value = tf.cond(prob > tf.constant(1), lambda: other, lambda: unpacked_labels[0])
 
-    unpacked_data = []
+    #unpacked_data = []
     unpacked_data.append(unpacked_labels[1])
     unpacked_data.append(unpacked_labels[2])
     #unpacked_data.append(unpacked_labels[0])
