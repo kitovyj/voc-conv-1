@@ -229,18 +229,22 @@ def input_data(file_name_prefix, amount, shuffle):
     csv_data = tf.read_file(csv_file_name)
     #csv_data = tf.slice(csv_data, [0], [string_length(csv_data) - 1])
  #   csv_data = tf.Print(csv_data, [csv_data], message = "This is csv_data: ")
-    label_defaults = [[] for x in range(n_classes)]   
+    label_defaults = [[] for x in range(n_classes + 3)]   
   #  csv_data = tf.Print(csv_data, [csv_data], message = "b4! ")
     unpacked_labels = tf.decode_csv(csv_data, record_defaults = label_defaults)
 #    png_file_name = tf.Print(png_file_name, [png_file_name], message = "after ")
 #    unpacked_labels = list(reversed(unpacked_labels))
-#    unpacked_labels.pop()
+    unpacked_labels.pop()
+    unpacked_labels.pop()
+    unpacked_labels.pop()
+
     #unpacked_labels[4] = tf.constant(1, dtype = tf.float32);
     #unpacked_labels[5] = tf.constant(1, dtype = tf.float32);
-    random = tf.mod(abs_index, tf.constant(2))
-    random = tf.cast(random, tf.float32)
-    unpacked_labels = []
-    unpacked_labels.append(random)
+    
+    #random = tf.mod(abs_index, tf.constant(2))  
+    #random = tf.cast(random, tf.float32)
+    #unpacked_labels = []
+    #unpacked_labels.append(random)
 
     labels = tf.pack(unpacked_labels)
 #    labels = tf.Print(labels, [labels], message = "These are labels: ")  
