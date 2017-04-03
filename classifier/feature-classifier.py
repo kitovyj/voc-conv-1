@@ -44,6 +44,7 @@ data_path = args.data_path
 # Network Parameters
 n_classes = 1 # Mtotal classes
 n_data = 9 + 2
+n_data = 9
 #n_data = 2
 
 batch_size = 640
@@ -151,8 +152,8 @@ def input_data(file_name_prefix, amount, shuffle):
     #data_value = tf.cond(prob > tf.constant(1), lambda: other, lambda: unpacked_labels[0])
 
     #unpacked_data = []
-    unpacked_data.append(unpacked_labels[1])
-    unpacked_data.append(unpacked_labels[2])
+    #unpacked_data.append(unpacked_labels[1])
+    #unpacked_data.append(unpacked_labels[2])
     #unpacked_data.append(unpacked_labels[0])
     #unpacked_data.append(data_value)
 
