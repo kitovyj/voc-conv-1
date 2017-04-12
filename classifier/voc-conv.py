@@ -59,11 +59,11 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--kernel-size', dest = 'kernel_size', type = int, default = 5)
 parser.add_argument('--fc-sizes', dest = 'fc_sizes', type = int, nargs = '+', default = 1024, help = 'fully connected layer size')
 parser.add_argument('--fc-num', dest = 'fc_num', type = int, default = 1, help = 'fully connected layers number')
-parser.add_argument('--learning-rate', dest = 'learning_rate', type = float, default = 0.00001, help = 'learning rate')
+parser.add_argument('--learning-rate', dest = 'learning_rate', type = float, default = 0.0001, help = 'learning rate')
 parser.add_argument('--initial-weights-seed', dest = 'initial_weights_seed', type = int, default = None, help = 'initial weights seed')
 parser.add_argument('--dropout', dest = 'dropout', type = float, default = 0.0, help = 'drop out probability')
 parser.add_argument('--epochs', dest = 'epochs', type = int, default = 40, help = 'number of training epochs')
-parser.add_argument('--train-amount', dest = 'train_amount', type = int, default = 150000, help = 'number of training samples')
+parser.add_argument('--train-amount', dest = 'train_amount', type = int, default = 59000, help = 'number of training samples')
 parser.add_argument('--data-path', dest = 'data_path', default = './data/', help = 'the path where the input data are stored')
 parser.add_argument('--test-amount', dest = 'test_amount', type = int, default = 500, help = 'number of test samples')
 
@@ -82,7 +82,7 @@ initial_weights_seed = args.initial_weights_seed
 #learning_rate = 0.000005
 #learning_rate = 0.0005
 learning_rate = args.learning_rate
-dropout = args.dropout # Dropout, probability to drop units out
+dropout_prob = args.dropout # Dropout, probability to drop units out
 epochs = args.epochs
 train_amount = args.train_amount
 test_amount = args.test_amount
@@ -90,6 +90,12 @@ data_path = args.data_path
 
 image_width = 100
 image_height = 100
+
+c1_max_pooling = 2
+c2_max_pooling = 2
+
+c1_features = 32
+c2_features = 64
 
 #image_width = 28
 #image_height = 28
@@ -107,8 +113,8 @@ eval_batch_size = n_classes * 100
 #x = tf.placeholder(tf.float32, [None, n_input])
 #y = tf.placeholder(tf.float32, [None, n_classes])
 
-dropout_ph = tf.placeholder(tf.float32) #dropout (keep probability)
-accuracy_ph = tf.placeholder(tf.float32) #dropout (keep probability)
+dropout_ph = tf.placeholder(tf.float32) #dropout (drop probability)
+accuracy_ph = tf.placeholder(tf.float32)
 
 # Create some wrappers for simplicity
 def conv2d(x, W, b, strides = 1):
@@ -118,7 +124,7 @@ def conv2d(x, W, b, strides = 1):
     return tf.nn.relu(x)
 
 
-def maxpool2d(x, k=2):
+def maxpool2d(x, k = 2):
     # MaxPool2D wrapper
     return tf.nn.max_pool(x, ksize=[1, k, k, 1], strides=[1, k, k, 1],
                           padding='SAME')
@@ -131,13 +137,17 @@ def conv_net(x, weights, biases, dropout):
 
     # Convolution Layer
     conv1 = conv2d(x, weights['wc1'], biases['bc1'])
-    # Max Pooling (down-sampling)
-    conv1 = maxpool2d(conv1, k = 2)
+    
+    if c1_max_pooling > 1:
+       # Max Pooling (down-sampling)
+       conv1 = maxpool2d(conv1, k = c1_max_pooling)
 
     # Convolution Layer
     conv2 = conv2d(conv1, weights['wc2'], biases['bc2'])
-    # Max Pooling (down-sampling)
-    conv2 = maxpool2d(conv2, k = 2)
+
+    if c2_max_pooling > 1:
+       # Max Pooling (down-sampling)
+       conv2 = maxpool2d(conv2, k = c2_max_pooling)
 
     # Fully connected layer
     # Reshape conv2 output to fit fully connected layer input
@@ -158,23 +168,23 @@ def conv_net(x, weights, biases, dropout):
 
 
 biases = {
-    'bc1': tf.Variable(tf.zeros([32])),
-    'bc2': tf.Variable(tf.constant(0.1, shape=[64], dtype=tf.float32)),
+    'bc1': tf.Variable(tf.zeros([c1_features])),
+    'bc2': tf.Variable(tf.constant(0.1, shape = [c2_features], dtype = tf.float32)),
     'bd': [],
-    'out': tf.Variable(tf.constant(0.1, shape=[n_classes]))
+    'out': tf.Variable(tf.constant(0.1, shape = [n_classes]))
 }
 
 
 # Store layers weight & bias
 weights = {
     # 5x5 conv, 1 input, 32 outputs
-    'wc1': tf.Variable(tf.truncated_normal([kernel_size, kernel_size, 1, 32], stddev=0.1, seed = initial_weights_seed)),
+    'wc1': tf.Variable(tf.truncated_normal([kernel_size, kernel_size, 1, c1_features], stddev = 0.1, seed = initial_weights_seed)),
     # 5x5 conv, 32 inputs, 64 outputs
-    'wc2': tf.Variable(tf.truncated_normal([kernel_size, kernel_size, 32, 64], stddev=0.1, seed = initial_weights_seed)),
+    'wc2': tf.Variable(tf.truncated_normal([kernel_size, kernel_size, c1_features, c2_features], stddev = 0.1, seed = initial_weights_seed)),
     # fully connected, 7*7*64 inputs, 1024 outputs
     'wd': [],
      # 1024 inputs, n_classes outputs (class prediction)
-    'out': tf.Variable(tf.truncated_normal([fc_sizes[-1], n_classes], stddev=0.1, seed = initial_weights_seed))
+    'out': tf.Variable(tf.truncated_normal([fc_sizes[-1], n_classes], stddev = 0.1, seed = initial_weights_seed))
 }
 
 
@@ -186,12 +196,15 @@ weights_copy = {
 }
 
 for i in range(hidden_layers_n):
-  if i == 0:
-     weights['wd'].append(tf.Variable(tf.truncated_normal([int((image_width / 4) * (image_height / 4) * 64), fc_sizes[i]], stddev=0.1, seed = initial_weights_seed)))
-  else:
-     weights['wd'].append(tf.Variable(tf.truncated_normal([fc_sizes[i - 1], fc_sizes[i]], stddev=0.1, seed = initial_weights_seed)))
 
-  biases['bd'].append(tf.Variable(tf.constant(0.1, shape=[fc_sizes[i]])))
+  pooling_coeff = c1_max_pooling * c1_max_pooling 
+
+  if i == 0:
+     weights['wd'].append(tf.Variable(tf.truncated_normal([int((image_width / pooling_coeff) * (image_height / pooling_coeff) * c2_features), fc_sizes[i]], stddev = 0.1, seed = initial_weights_seed)))
+  else:
+     weights['wd'].append(tf.Variable(tf.truncated_normal([fc_sizes[i - 1], fc_sizes[i]], stddev = 0.1, seed = initial_weights_seed)))
+
+  biases['bd'].append(tf.Variable(tf.constant(0.1, shape = [fc_sizes[i]])))
   weights_copy['wd'].append(tf.Variable(weights['wd'][i].initialized_value()))
 
   
@@ -316,9 +329,9 @@ learning_rate = tf.train.exponential_decay(
     staircase = True)
 '''
 
-#optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(cost)
+optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(cost)
 #optimizer = tf.train.MomentumOptimizer(learning_rate, 0.1).minimize(cost, global_step=batch)
-optimizer = tf.train.GradientDescentOptimizer(learning_rate=learning_rate).minimize(cost)
+#optimizer = tf.train.GradientDescentOptimizer(learning_rate=learning_rate).minimize(cost)
 
 
 #try smaller values
@@ -354,7 +367,7 @@ def test_accuracy(iteration, total):
     epoch = int(iteration / batches_per_epoch)
     done = int((iteration * 100) / total) 
     batch = int(iteration % batches_per_epoch);
-    acc = sess.run(accuracy, feed_dict = {dropout_ph: 0.0} )
+    acc = sess.run(accuracy, feed_dict = { dropout_ph: 0.0 } )
     accuracy_value = acc
     print(str(done) + "% done" + ", epoch " + str(epoch) + ", batches: " + str(batch) + ", testing accuracy: " + str(acc))
 
@@ -396,7 +409,7 @@ const_summaries.append(tf.summary.scalar('fully connected layers', tf.constant(l
 for i in range(len(fc_sizes)):
     name = 'fully connected layer ' + str(i + 1) + ' size'
     const_summaries.append(tf.summary.scalar(name, tf.constant(fc_sizes[i])))
-const_summaries.append(tf.summary.scalar('dropout probablility', tf.constant(dropout)))
+const_summaries.append(tf.summary.scalar('dropout probablility', tf.constant(dropout_prob)))
 const_summaries.append(tf.summary.scalar('epochs', tf.constant(epochs)))
 const_summaries.append(tf.summary.scalar('train amount', tf.constant(train_amount)))
 const_summaries.append(tf.summary.scalar('test amount', tf.constant(test_amount)))
@@ -435,7 +448,7 @@ print('fully connected layers: ' + str(len(fc_sizes)))
 for i in range(len(fc_sizes)):
     print('fully connected layer ' + str(i + 1) + ' size: ' + str(fc_sizes[i]))
 print("kernel size: " + str(kernel_size))
-print("dropout probability: " + str(dropout))
+print("dropout probability: " + str(dropout_prob))
 print("initial weights seed: " + str(initial_weights_seed))
 print("train amount: " + str(train_amount))
 print("test amount: " + str(test_amount))
@@ -460,7 +473,7 @@ for i in range(iterations):
 
     #_, c, _, summary = sess.run([optimizer, cost, learning_rate, wc1_summary], feed_dict = {keep_prob: dropout} )
     #  _, _, summary = sess.run([optimizer, learning_rate, wc1_summary], feed_dict = {keep_prob: dropout} )
-    _ = sess.run([optimizer], feed_dict = { dropout_ph: dropout } )
+    _ = sess.run([optimizer], feed_dict = { dropout_ph: dropout_prob } )
 
     '''
     array = sess.run(weights['wc2'])
