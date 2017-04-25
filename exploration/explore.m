@@ -1,7 +1,7 @@
 function explore()
 
     data_path = '..\collector\data\';
-    
+        
     source_files = strcat(data_path, '*.mat');
 
     files = dir(source_files);
@@ -13,12 +13,25 @@ function explore()
     
     durations = { []; []; };
     frequencies = { []; []; };
+    loudnesses = { []; []; };
         
     percent = int64(count / 100);
         
     i = 0;
     
+    freq_range = 233;
+    time_range = 100;
+    
+    total_pixels = freq_range * time_range;
+    total_pixels_100 = 100 * 100;
+
+    raw = zeros(total_pixels, count);
+    raw_100 = zeros(total_pixels_100, count);
+    responses = zeros(count, 1);
+    
     for file = files'
+        
+        %disp(file);
 
         if mod(i, percent*10) == 0            
             fprintf('%d%%', int32(round(i * 100 / count)));
@@ -59,11 +72,31 @@ function explore()
         weighted_sums = sum(weighted_coord, 1);
         avg_freq = mean(weighted_sums ./ freq_sums);
         
-        frequencies{class_num} = [frequencies{class_num} avg_freq];        
+        frequencies{class_num} = [frequencies{class_num} avg_freq]; 
+        
+        avg_value = mean(mean(spec));
 
+        loudnesses{class_num} = [loudnesses{class_num} avg_value]; 
+               
+        im = zeros(freq_range, time_range);
+
+        sp = spec(:, 1:min(size(spec, 2), time_range));
+            
+        start_row = 1;
+        start_col = 1;
+        im(start_row: start_row + size(sp, 1) - 1, start_col:start_col + size(sp, 2) - 1) = sp;
+        
+        raw(1:end, i) = im(:);
+        
+        im = imresize(im, [100 100]);
+
+        raw_100(1:end, i) = im(:);
+        
+        responses(i) = class_num - 1; 
+        
     end
     
-    save('statistics.mat', 'total_classes', 'frequencies', 'durations');
+    save('statistics.mat', 'total_classes', 'frequencies', 'durations', 'loudnesses', 'raw', 'responses', 'raw_100');
     
     fprintf('\n');
 
