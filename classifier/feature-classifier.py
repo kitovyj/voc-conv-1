@@ -11,12 +11,12 @@ import datetime
 
 parser = argparse.ArgumentParser()
 
-parser.add_argument('--fc-sizes', dest = 'fc_sizes', type = int, nargs = '+', default = [16], help = 'fully connected layer size')
-parser.add_argument('--fc-num', dest = 'fc_num', type = int, default = 1, help = 'fully connected layers number')
+parser.add_argument('--fc-sizes', dest = 'fc_sizes', type = int, nargs = '+', default = [16, 16, 16], help = 'fully connected layer size')
+parser.add_argument('--fc-num', dest = 'fc_num', type = int, default = 3, help = 'fully connected layers number')
 parser.add_argument('--learning-rate', dest = 'learning_rate', type = float, default = 0.001, help = 'learning rate')
 parser.add_argument('--initial-weights-seed', dest = 'initial_weights_seed', type = int, default = None, help = 'initial weights seed')
 parser.add_argument('--dropout', dest = 'dropout', type = float, default = 0.0, help = 'drop out probability')
-parser.add_argument('--epochs', dest = 'epochs', type = int, default = 40, help = 'number of training epochs')
+parser.add_argument('--epochs', dest = 'epochs', type = int, default = 4000, help = 'number of training epochs')
 parser.add_argument('--train-amount', dest = 'train_amount', type = int, default = 12454, help = 'number of training samples')
 parser.add_argument('--data-path', dest = 'data_path', default = './vocs_data2/', help = 'the path where input data are stored')
 parser.add_argument('--test-amount', dest = 'test_amount', type = int, default = 500, help = 'number of test samples')
@@ -43,7 +43,7 @@ data_path = args.data_path
 
 # Network Parameters
 n_classes = 1 # Mtotal classes
-n_data = 9 + 2
+#n_data = 9 + 2
 n_data = 9
 #n_data = 2
 
