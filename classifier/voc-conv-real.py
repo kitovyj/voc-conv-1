@@ -467,7 +467,7 @@ coord = tf.train.Coordinator()
 threads = tf.train.start_queue_runners(sess = sess, coord = coord)
 
 accuracy_value = 0
-class_accuracies = numpy.zeros(n_classes)
+class_accuracies = numpy.zeros(n_classes + 1)
 loss_value = 0
 train_accuracy_value = -1
 
