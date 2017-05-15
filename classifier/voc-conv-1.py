@@ -62,8 +62,8 @@ image_height = 100
 
 # Network Parameters
 n_input = image_width * image_height 
-n_classes = 6 # Mtotal classes
-dropout = 1.0 # Dropout, probability to keep units
+n_classes = 8 # Mtotal classes
+dropout = 0.7 # Dropout, probability to keep units
 
 
 train_amount = 14000*n_classes
@@ -185,17 +185,28 @@ biases = {
  
 def input_data(start_index, amount, shuffle):
     
-    data_folder = '/media/sf_vb-shared/data4/'
+    data_folder = './data5/'
 
-
-
+    '''
     folder_map = tf.constant(['a', 'b', 'c', 'd', 'e', 'f'])
     label_map = tf.constant([ [0.0, 1.0, 0.0, 0.0, 0.0, 0.0],
-                              [1.0, 0.0, 0.0, 0.0, 0.0, 0.0], 
-                              [0.0, 0.0, 1.0, 0.0, 0.0, 0.0], 
-                              [0.0, 0.0, 0.0, 1.0, 0.0, 0.0], 
-                              [0.0, 0.0, 0.0, 0.0, 1.0, 0.0], 
+                              [1.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+                              [0.0, 0.0, 1.0, 0.0, 0.0, 0.0],
+                              [0.0, 0.0, 0.0, 1.0, 0.0, 0.0],
+                              [0.0, 0.0, 0.0, 0.0, 1.0, 0.0],
                               [0.0, 0.0, 0.0, 0.0, 0.0, 1.0] ])
+    '''
+
+
+    folder_map = tf.constant(['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'])
+    label_map = tf.constant([ [0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+                              [1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], 
+                              [0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0], 
+                              [0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0], 
+                              [0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0], 
+                              [0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0],
+                              [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0],
+                              [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0] ])
 
 
     '''

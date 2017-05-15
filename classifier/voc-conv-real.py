@@ -246,8 +246,8 @@ def input_data(file_name_prefix, amount, shuffle):
     #unpacked_labels = []
     #unpacked_labels.append(random)
 
-    labels = tf.pack(unpacked_labels)
-#    labels = tf.Print(labels, [labels], message = "These are labels: ")  
+    labels = tf.stack(unpacked_labels)
+    #labels = tf.Print(labels, [labels], message = "These are labels: ")  
 #    print(labels.get_shape())
         
     png_data = tf.read_file(png_file_name)    
@@ -272,7 +272,7 @@ def normalize(a):
     return tf.div(a, euclidean_norm(a))
     
 def weights_change(a, b):
-    distance = euclidean_norm(tf.sub(normalize(a), normalize(b)))
+    distance = euclidean_norm(tf.subtract(normalize(a), normalize(b)))
     return distance
     
 def weights_change_summary():
@@ -302,14 +302,17 @@ x_batch, y_batch = tf.train.batch([x, y], batch_size = batch_size)
 pred = conv_net(x_batch, weights, biases, dropout_ph)
 
 # Define loss and optimizer
-cost = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(pred, y_batch))
+cost = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits = pred, labels = y_batch))
 
 # L2 regularization for the fully connected parameters.
 
-#regularizers = (tf.nn.l2_loss(weights['wd1']) + tf.nn.l2_loss(biases['bd1']) +
-#                tf.nn.l2_loss(weights['out']) + tf.nn.l2_loss(biases['out']))
+regularizers = tf.nn.l2_loss(weights['out'])
+
+for i in range(hidden_layers_n):
+    regularizers = regularizers + tf.nn.l2_loss(weights['wd'][i])  
+
 # Add the regularization term to the loss.
-#cost += 5e-4 * regularizers
+cost += 100*5e-4 * regularizers
 
 
 # Optimizer: set up a variable that's incremented once per batch and
@@ -348,10 +351,17 @@ y1.set_shape([n_classes])
 
 x1_batch, y1_batch = tf.train.batch([x1, y1], batch_size = eval_batch_size)
 pred1 = tf.round(tf.sigmoid(conv_net(x1_batch, weights, biases, dropout_ph)))
+
+
+#pred1 = conv_net(x1_batch, weights, biases, dropout_ph)
 #y1_batch = tf.Print(y1_batch, [y1_batch], 'label', summarize = 30)
 #pred1 = tf.Print(pred1, [pred1], 'pred ', summarize = 30)
 #correct_pred = tf.equal(tf.argmax(pred1, 1), tf.argmax(y1_batch, 1))
 #correct_pred = tf.reduce_all(tf.equal(pred1, y1_batch), 1)
+
+#correct_pred = tf.equal(tf.argmax(pred1, 1), tf.argmax(y1_batch, 1))
+#accuracy = tf.reduce_mean(tf.cast(correct_pred, tf.float32)) 
+
 correct_pred = tf.equal(pred1, y1_batch)
 accuracy = tf.reduce_mean(tf.cast(correct_pred, tf.float32))
 

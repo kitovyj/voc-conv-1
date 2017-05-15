@@ -84,7 +84,7 @@ def put_kernels_on_color_grid (kernel, grid_Y, grid_X, pad = 1):
 
     # separate negative and positive values
     positive_kernel = tf.maximum(kernel, zeros)
-    negative_kernel = tf.neg(tf.minimum(kernel, zeros))
+    negative_kernel = tf.negative(tf.minimum(kernel, zeros))
     
     # normalize values    
     kmin = tf.reduce_min(positive_kernel)
@@ -95,7 +95,7 @@ def put_kernels_on_color_grid (kernel, grid_Y, grid_X, pad = 1):
     kmax = tf.reduce_max(negative_kernel)        
     negative = (negative_kernel - kmin) / (kmax - kmin)
             
-    kernel1 = tf.concat(tf.constant(2), [positive, zeros, negative]);
+    kernel1 = tf.concat([positive, zeros, negative], 2);
     
     # pad X and Y
     x1 = tf.pad(kernel1, tf.constant( [[pad, pad], [pad, pad], [0, 0], [0, 0]] ), mode = 'CONSTANT')
@@ -109,12 +109,12 @@ def put_kernels_on_color_grid (kernel, grid_Y, grid_X, pad = 1):
     # put NumKernels to the 1st dimension
     x2 = tf.transpose(x1, (3, 0, 1, 2))
     # organize grid on Y axis
-    x3 = tf.reshape(x2, tf.pack([grid_X, Y * grid_Y, X, channels]))
+    x3 = tf.reshape(x2, tf.stack([grid_X, Y * grid_Y, X, channels]))
     
     # switch X and Y axes
     x4 = tf.transpose(x3, (0, 2, 1, 3))
     # organize grid on X axis
-    x5 = tf.reshape(x4, tf.pack([1, X * grid_X, Y * grid_Y, channels]))
+    x5 = tf.reshape(x4, tf.stack([1, X * grid_X, Y * grid_Y, channels]))
     
     # back to normal order (not combining with the next step for clarity)
     x6 = tf.transpose(x5, (2, 1, 3, 0))
@@ -230,7 +230,7 @@ def put_fully_connected_on_color_grid (weights, grid_Y, grid_X, pad = 0):
     kmax = tf.reduce_max(negative_kernel)        
     negative = (negative_kernel - kmin) / (kmax - kmin)
             
-    weights2 = tf.concat(tf.constant(2), [positive, zeros, negative]);
+    weights2 = tf.concat([positive, zeros, negative], 2);
 
     # pad X and Y
     x1 = tf.pad(weights2, tf.constant( [[pad,pad],[pad, pad],[0,0],[0,0]] ), mode = 'CONSTANT')
@@ -286,7 +286,7 @@ def put_averaged_kernels_on_color_grid (kernel, grid_Y, grid_X, pad = 1):
     kmax = tf.reduce_max(negative_kernel)        
     negative = (negative_kernel - kmin) / (kmax - kmin)
             
-    kernel1 = tf.concat(tf.constant(2), [positive, zeros, negative]);
+    kernel1 = tf.concat([positive, zeros, negative], 2);
 
     # pad X and Y
     x1 = tf.pad(kernel1, tf.constant( [[pad,pad],[pad, pad],[0,0],[0,0]] ), mode = 'CONSTANT')
