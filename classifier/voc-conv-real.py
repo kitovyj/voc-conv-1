@@ -102,7 +102,7 @@ n_classes = 1 # Mtotal classes
 batch_size = 64
 
 #eval_batch_size = n_classes * 100
-eval_batch_size = test_amount
+eval_batch_size = 50
 
 # tf Graph input
 #x = tf.placeholder(tf.float32, [None, n_input])
@@ -352,7 +352,7 @@ optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(cost)
 
 # Define evaluation pipeline
 
-x1, y1 = input_data('test', eval_batch_size, shuffle = False)
+x1, y1 = input_data('test', test_amount, shuffle = False)
 x1.set_shape([image_height * image_width])
 y1.set_shape([n_classes])
 
