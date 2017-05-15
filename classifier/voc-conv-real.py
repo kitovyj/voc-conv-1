@@ -357,8 +357,7 @@ x1.set_shape([image_height * image_width])
 y1.set_shape([n_classes])
 
 x1_batch, y1_batch = tf.train.batch([x1, y1], batch_size = eval_batch_size)
-pred1 = tf.round(tf.sigmoid(conv_net(x1_batch, weights, biases, dropout_ph)))
-
+pred1 = conv_net(x1_batch, weights, biases, dropout_ph)
 
 #pred1 = conv_net(x1_batch, weights, biases, dropout_ph)
 #y1_batch = tf.Print(y1_batch, [y1_batch], 'label', summarize = 30)
@@ -369,7 +368,7 @@ pred1 = tf.round(tf.sigmoid(conv_net(x1_batch, weights, biases, dropout_ph)))
 #correct_pred = tf.equal(tf.argmax(pred1, 1), tf.argmax(y1_batch, 1))
 #accuracy = tf.reduce_mean(tf.cast(correct_pred, tf.float32)) 
 
-correct_pred = tf.equal(pred_batch_ph, y_batch_ph)
+correct_pred = tf.equal(tf.round(tf.sigmoid(pred_batch_ph)), y_batch_ph)
 accuracy = tf.reduce_mean(tf.cast(correct_pred, tf.float32))
 
 grid = tf_visualization.put_kernels_on_color_grid (weights['wc1'], grid_Y = 4, grid_X = 8)
@@ -433,7 +432,7 @@ train_summaries.append(tf.summary.scalar('loss', loss_ph))
 
 class_accuracies_ph = [None]*n_classes
 
-for n in range(n_classes):
+for n in range(n_classes + 1):
     class_accuracies_ph[n] = tf.placeholder(tf.float32)
     train_summaries.append(tf.summary.scalar('accuracy_' + str(n + 1), class_accuracies_ph[n]))
 
@@ -479,7 +478,7 @@ def calc_test_accuracy():
 
     batches_per_class = int(250 / eval_batch_size)
 
-    for n in range(n_classes):
+    for n in range(n_classes + 1):
         acc_sum = 0.0
         for i in range(batches_per_class):
             p, y = sess.run([pred1, y1_batch], feed_dict = {dropout_ph: 0.0} )
