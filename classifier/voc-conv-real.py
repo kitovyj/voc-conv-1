@@ -430,7 +430,7 @@ train_summaries.append(tf.summary.scalar('accuracy', accuracy_ph))
 train_summaries.append(tf.summary.scalar('train_accuracy', train_accuracy_ph))
 train_summaries.append(tf.summary.scalar('loss', loss_ph))
 
-class_accuracies_ph = [None]*n_classes
+class_accuracies_ph = [None]*(n_classes + 1)
 
 for n in range(n_classes + 1):
     class_accuracies_ph[n] = tf.placeholder(tf.float32)
