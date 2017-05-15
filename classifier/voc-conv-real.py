@@ -524,7 +524,7 @@ def write_summaries():
     global loss_value
 
     fd = { accuracy_ph: accuracy_value, train_accuracy_ph: train_accuracy_value, loss_ph: loss_value }
-    for n in range(n_classes):
+    for n in range(n_classes + 1):
         fd[class_accuracies_ph[n]] = class_accuracies[n]
 
     s = sess.run(train_summary, feed_dict = fd)
