@@ -538,6 +538,7 @@ for i in range(iterations):
         #print("Minibatch Loss= " + "{:.6f}".format(c))
         calc_test_accuracy()
 
+    # OPTMIZE CALC TRAIN ACCURACY!!!!
 
     _, loss_value, p = sess.run([optimizer, cost, pred], feed_dict = { x_batch_ph: x, y_batch_ph : y, dropout_ph: dropout } )
 
