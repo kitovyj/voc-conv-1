@@ -59,7 +59,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--kernel-size', dest = 'kernel_size', type = int, default = 5)
 parser.add_argument('--fc-sizes', dest = 'fc_sizes', type = int, nargs = '+', default = 1024, help = 'fully connected layer size')
 parser.add_argument('--fc-num', dest = 'fc_num', type = int, default = 1, help = 'fully connected layers number')
-parser.add_argument('--learning-rate', dest = 'learning_rate', type = float, default = 0.000001, help = 'learning rate')
+parser.add_argument('--learning-rate', dest = 'learning_rate', type = float, default = 0.0001, help = 'learning rate')
 parser.add_argument('--initial-weights-seed', dest = 'initial_weights_seed', type = int, default = None, help = 'initial weights seed')
 parser.add_argument('--dropout', dest = 'dropout', type = float, default = 0.0, help = 'drop out probability')
 parser.add_argument('--epochs', dest = 'epochs', type = int, default = 40, help = 'number of training epochs')
@@ -107,11 +107,15 @@ n_classes = 9 # Mtotal classes
 
 batch_size = 64
 
-eval_batch_size = test_amount
+eval_batch_size = 50
 
 # tf Graph input
 #x = tf.placeholder(tf.float32, [None, n_input])
 #y = tf.placeholder(tf.float32, [None, n_classes])
+
+x_batch_ph = tf.placeholder(tf.float32, [None, n_input], name = 'x_batch')
+y_batch_ph = tf.placeholder(tf.float32, [None, n_classes], name = 'y_batch')
+pred_batch_ph = tf.placeholder(tf.float32, [None, n_classes], name = 'pred_batch')
 
 dropout_ph = tf.placeholder(tf.float32) #dropout (drop probability)
 accuracy_ph = tf.placeholder(tf.float32)
@@ -248,7 +252,7 @@ def input_data(start_index, amount, shuffle):
 #    unpacked_labels.pop()
     #unpacked_labels[4] = tf.constant(1, dtype = tf.float32);
     #unpacked_labels[5] = tf.constant(1, dtype = tf.float32);
-    labels = tf.pack(unpacked_labels)
+    labels = tf.stack(unpacked_labels)
 #    labels = tf.Print(labels, [labels], message = "These are labels: ")  
 #    print(labels.get_shape())
         
@@ -274,7 +278,7 @@ def normalize(a):
     return tf.div(a, euclidean_norm(a))
     
 def weights_change(a, b):
-    distance = euclidean_norm(tf.sub(normalize(a), normalize(b)))
+    distance = euclidean_norm(tf.subtract(normalize(a), normalize(b)))
     return distance
 
 def weights_change_summary():
@@ -301,10 +305,10 @@ y.set_shape([n_classes])
 x_batch, y_batch = tf.train.batch([x, y], batch_size = batch_size)
 
 # Construct model
-pred = conv_net(x_batch, weights, biases, dropout_ph)
+pred = conv_net(x_batch_ph, weights, biases, dropout_ph)
 
 # Define loss and optimizer
-cost = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(pred, y_batch))
+cost = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits = pred, labels = y_batch_ph))
 
 regularizers = tf.nn.l2_loss(weights['out'])
 
@@ -337,7 +341,7 @@ learning_rate = tf.train.exponential_decay(
     staircase = True)
 '''
 
-optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(cost)
+optimizer = tf.train.AdamOptimizer(learning_rate = learning_rate).minimize(cost)
 #optimizer = tf.train.MomentumOptimizer(learning_rate, 0.1).minimize(cost, global_step=batch)
 #optimizer = tf.train.GradientDescentOptimizer(learning_rate=learning_rate).minimize(cost)
 
@@ -364,20 +368,50 @@ pred1 = tf.round(tf.sigmoid(conv_net(x1_batch, weights, biases, dropout_ph)))
 #pred1 = tf.Print(pred1, [pred1], 'pred ', summarize = 30)
 #correct_pred = tf.equal(tf.argmax(pred1, 1), tf.argmax(y1_batch, 1))
 #correct_pred = tf.reduce_all(tf.equal(pred1, y1_batch), 1)
-correct_pred = tf.equal(pred1, y1_batch)
+correct_pred = tf.equal(tf.round(tf.sigmoid(pred_batch_ph)), y_batch_ph)
 accuracy = tf.reduce_mean(tf.cast(correct_pred, tf.float32))
 
 accuracy_value = 0
+loss_value = 0
+train_accuracy_value = -1
 
-def test_accuracy(iteration, total):
-    global accuracy_value   
-    batches_per_epoch = train_amount / batch_size    
+def calc_test_accuracy():
+    global accuracy_value
+    global class_accuracies
+    #batches = int(round(test_amount / eval_batch_size + 0.5))
+
+    batches_per_class = int(test_amount / eval_batch_size)
+
+    acc_sum = 0.0
+    for i in range(batches_per_class):
+        p, y = sess.run([pred1, y1_batch], feed_dict = {dropout_ph: 0.0} )
+        acc = sess.run(accuracy, feed_dict = { pred_batch_ph : p, y_batch_ph : y } )
+        acc_sum = acc_sum + acc
+
+    accuracy_value = acc_sum / batches_per_class
+
+def calc_train_accuracy(pred, y):
+    global train_accuracy_value
+    acc = sess.run(accuracy, feed_dict = { pred_batch_ph : pred, y_batch_ph : y } )
+    alpha = 0.1
+    if train_accuracy_value < 0:
+        train_accuracy_value = acc
+    else:
+        train_accuracy_value = train_accuracy_value * (1 - alpha) + alpha * acc
+
+def display_info(iteration, total):
+
+    global accuracy_value
+    global train_accuracy_value
+    global class_accuracies
+    global loss_value
+
+    batches_per_epoch = train_amount / batch_size
     epoch = int(iteration / batches_per_epoch)
-    done = int((iteration * 100) / total) 
+    done = int((iteration * 100) / total)
     batch = int(iteration % batches_per_epoch);
-    acc = sess.run(accuracy, feed_dict = { dropout_ph: 0.0 } )
-    accuracy_value = acc
-    print(str(done) + "% done" + ", epoch " + str(epoch) + ", batches: " + str(batch) + ", testing accuracy: " + str(acc))
+
+    print(str(done) + "% done" + ", epoch " + str(epoch) + ", batches: " + str(batch) + ", loss: " + str(loss_value) + ", train acc.: " + str(train_accuracy_value) + ", test acc.: " + str(accuracy_value))
 
 grid = tf_visualization.put_kernels_on_color_grid (weights['wc1'], grid_Y = 4, grid_X = 8)
 grid_orig = tf_visualization.put_kernels_on_color_grid (weights_copy['wc1'], grid_Y = 4, grid_X = 8)
@@ -470,38 +504,23 @@ print("summary interval: " + str(summary_interval))
 
 for i in range(iterations):
 
-    if i % summary_interval == 0:
+    x, y = sess.run([x_batch, y_batch], feed_dict = { dropout_ph: dropout_prob } )
 
+    if i % summary_interval == 0:
         #print("Minibatch Loss= " + "{:.6f}".format(c))
-        test_accuracy(i, iterations)
+        calc_test_accuracy()
 
-    if i % summary_interval == 0:
-       s = sess.run(train_summary, feed_dict = { accuracy_ph: accuracy_value })
-       train_writer.add_summary(s)
+    # OPTMIZE CALC TRAIN ACCURACY!!!!
 
-    #_, c, _, summary = sess.run([optimizer, cost, learning_rate, wc1_summary], feed_dict = {keep_prob: dropout} )
-    #  _, _, summary = sess.run([optimizer, learning_rate, wc1_summary], feed_dict = {keep_prob: dropout} )
-    _ = sess.run([optimizer], feed_dict = { dropout_ph: dropout_prob } )
-
-    _, loss_value, p = sess.run([optimizer, cost, pred], feed_dict = { x_batch_ph: x, y_batch_ph : y, dropout_ph: dropout } )
+    _, loss_value, p = sess.run([optimizer, cost, pred], feed_dict = { x_batch_ph: x, y_batch_ph : y, dropout_ph: dropout_prob } )
 
     calc_train_accuracy(p, y)
 
     if i % summary_interval == 0:
         display_info(i, iterations)
         write_summaries();
-    '''
-    array = sess.run(weights['wc2'])
-    fname = 'conv' + str(i).zfill(9) + '.csv'
-    numpy.savetxt(fname, array.flatten(), "%10.10f")
-    '''
-    
-    '''
-    array = sess.run(weights['out'])
-    fname = 'out' + str(i).zfill(9) + '.csv'
-    numpy.savetxt(fname, array.flatten(), "%10.10f")
-    '''
-    
+
+
 
 '''
 array = sess.run(weights['wd1'])
