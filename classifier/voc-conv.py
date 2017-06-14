@@ -306,6 +306,14 @@ pred = conv_net(x_batch, weights, biases, dropout_ph)
 # Define loss and optimizer
 cost = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(pred, y_batch))
 
+regularizers = tf.nn.l2_loss(weights['out'])
+
+for i in range(hidden_layers_n):
+       regularizers = regularizers + tf.nn.l2_loss(weights['wd'][i])
+       
+# Add the regularization term to the loss.
+cost += 10 * 5e-4 * regularizers
+
 # L2 regularization for the fully connected parameters.
 
 #regularizers = (tf.nn.l2_loss(weights['wd1']) + tf.nn.l2_loss(biases['bd1']) +
@@ -475,6 +483,13 @@ for i in range(iterations):
     #  _, _, summary = sess.run([optimizer, learning_rate, wc1_summary], feed_dict = {keep_prob: dropout} )
     _ = sess.run([optimizer], feed_dict = { dropout_ph: dropout_prob } )
 
+    _, loss_value, p = sess.run([optimizer, cost, pred], feed_dict = { x_batch_ph: x, y_batch_ph : y, dropout_ph: dropout } )
+
+    calc_train_accuracy(p, y)
+
+    if i % summary_interval == 0:
+        display_info(i, iterations)
+        write_summaries();
     '''
     array = sess.run(weights['wc2'])
     fname = 'conv' + str(i).zfill(9) + '.csv'
@@ -530,6 +545,7 @@ weights_summary = tf.summary.merge(weights_summaries)
 
 weights_summary_result = sess.run(weights_summary)
 train_writer.add_summary(weights_summary_result)
+train_writer.close()
 
 coord.request_stop()
 coord.join()
