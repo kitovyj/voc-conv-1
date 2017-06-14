@@ -119,6 +119,8 @@ pred_batch_ph = tf.placeholder(tf.float32, [None, n_classes], name = 'pred_batch
 
 dropout_ph = tf.placeholder(tf.float32) #dropout (drop probability)
 accuracy_ph = tf.placeholder(tf.float32)
+train_accuracy_ph = tf.placeholder(tf.float32)
+loss_ph = tf.placeholder(tf.float32)
 
 # Create some wrappers for simplicity
 def conv2d(x, W, b, strides = 1):
@@ -425,7 +427,7 @@ sess = tf.Session()
 train_writer = tf.summary.FileWriter('./train',  sess.graph)
 
 # Initializing the variables
-init = tf.global_variables_initializer()
+init = tf.group(tf.global_variables_initializer(), tf.local_variables_initializer())
     
 sess.run(init)
 
@@ -478,6 +480,8 @@ train_summaries.append(weights_change_summary())
 train_summaries.append(tf.summary.image('conv1/features', grid, max_outputs = 1))
 train_summaries.append(tf.summary.image('conv1orig', grid_orig, max_outputs = 1))
 train_summaries.append(tf.summary.scalar('accuracy', accuracy_ph))
+train_summaries.append(tf.summary.scalar('train_accuracy', train_accuracy_ph))
+train_summaries.append(tf.summary.scalar('loss', loss_ph))
 
 
 train_summary = tf.summary.merge(train_summaries)
@@ -499,6 +503,17 @@ print("data path: " + str(data_path))
 
 total_summary_records = 10000
 summary_interval = int(max(iterations / total_summary_records, 1))
+
+def write_summaries():
+
+    global accuracy_value
+    global train_accuracy_value
+    global loss_value
+
+    fd = { accuracy_ph: accuracy_value, train_accuracy_ph: train_accuracy_value, loss_ph: loss_value }
+
+    s = sess.run(train_summary, feed_dict = fd)
+    train_writer.add_summary(s)
 
 print("summary interval: " + str(summary_interval))
 

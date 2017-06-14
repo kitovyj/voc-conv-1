@@ -1,1 +1,1 @@
-python3 -u ./voc-conv.py --data-path ./data/ --train-amount 200000 --epochs 100 --initial-weights-seed 9 --fc-num 3 --fc-sizes 512 256 128 --kernel-size 5 --dropout 0.5
+python3 -u ./voc-conv.py --data-path ./data/ --train-amount 170000 --epochs 100 --initial-weights-seed 9 --fc-num 3 --fc-sizes 512 256 128 --kernel-size 5 --dropout 0.5
