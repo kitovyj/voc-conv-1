@@ -102,7 +102,7 @@ n_classes = 1 # Mtotal classes
 batch_size = 64
 
 #eval_batch_size = n_classes * 100
-eval_batch_size = 50
+eval_batch_size = 250
 
 # tf Graph input
 #x = tf.placeholder(tf.float32, [None, n_input])
@@ -567,11 +567,11 @@ fname = 'wd1last.csv'
 numpy.savetxt(fname, array.flatten(), "%10.10f")
 '''
 
-model = td.Model()
-model.add(pred, sess)
-model.save("model.pkl")
+#model = td.Model()
+#model.add(pred, sess)
+#model.save("model.pkl")
 
-test_accuracy(iterations, iterations)
+calc_test_accuracy()
 write_summaries()
 
 end_time = time.time()
@@ -605,7 +605,7 @@ weights_summary = tf.summary.merge(weights_summaries)
 
 weights_summary_result = sess.run(weights_summary)
 train_writer.add_summary(weights_summary_result)
-
+train_writer.close()
 
 '''
 import os, datetime
