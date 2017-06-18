@@ -1,1 +1,1 @@
-python3 -u ./voc-conv-real.py --data-path ./vocs_data3/ --train-amount 12454 --epochs 300 --fc-num 3 --fc-sizes 20 10 5 --dropout 0.5
+python3 -u ./voc-conv-real.py --data-path ./vocs_data3/ --epochs 100 --kernel-sizes 10 5 5 3 3 --features 32 64 64 64 64 --max-pooling 2 2 2 1 1 --fc-num 3 --fc-sizes 2048 2048 2048 --dropout 0.5

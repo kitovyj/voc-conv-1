@@ -46,36 +46,38 @@ deep completion : https://bamos.github.io/2016/08/09/deep-completion/
 
 '''
 
-import sys
-import numpy
-import tensorflow as tf
-import tf_visualization
-import argparse
-import time
-import os
-import datetime
-
-parser = argparse.ArgumentParser()
-
-parser.add_argument('--kernel-size', dest = 'kernel_size', type = int, default = 5)
+parser.add_argument('--kernel-sizes', dest = 'kernel_sizes', type = int, nargs = '+', default = [5, 5], help = 'convolutional layers kernel sizes')
+parser.add_argument('--features', dest = 'features', type = int, nargs = '+', default = [32, 64], help = 'convolutional layers features')
+parser.add_argument('--max-pooling', dest = 'max_pooling', type = int, nargs = '+', default = [2, 2], help = 'convolutional layers max pooling')
 parser.add_argument('--fc-sizes', dest = 'fc_sizes', type = int, nargs = '+', default = 1024, help = 'fully connected layer size')
 parser.add_argument('--fc-num', dest = 'fc_num', type = int, default = 1, help = 'fully connected layers number')
-parser.add_argument('--learning-rate', dest = 'learning_rate', type = float, default = 0.0001, help = 'learning rate')
+parser.add_argument('--learning-rate', dest = 'learning_rate', type = float, default = 0.00002, help = 'learning rate')
 parser.add_argument('--initial-weights-seed', dest = 'initial_weights_seed', type = int, default = None, help = 'initial weights seed')
 parser.add_argument('--dropout', dest = 'dropout', type = float, default = 0.0, help = 'drop out probability')
 parser.add_argument('--epochs', dest = 'epochs', type = int, default = 40, help = 'number of training epochs')
 parser.add_argument('--train-amount', dest = 'train_amount', type = int, default = 10000, help = 'number of training samples')
-parser.add_argument('--data-path', dest = 'data_path', default = './vocs_data/', help = 'the path where input data are stored')
-parser.add_argument('--test-amount', dest = 'test_amount', type = int, default = 500, help = 'number of test samples')
+parser.add_argument('--data-path', dest = 'data_path', default = './vera_data/', help = 'the path where input data are stored')
+parser.add_argument('--test-data-path', dest = 'test_data_path', default = None, help = 'the path where input test data are stored')
+parser.add_argument('--test-amount', dest = 'test_amount', type = int, default = 250, help = 'number of test samples')
+parser.add_argument('--summary-file', dest = 'summary_file', default = None, help = 'the summary file where the trained weights and network parameters are stored')
 
 args = parser.parse_args()
 
-kernel_size = args.kernel_size
+kernel_sizes = args.kernel_sizes
+features = args.features
+max_pooling = args.max_pooling
 fc_sizes = args.fc_sizes
 
 if not isinstance(fc_sizes, list):
    fc_sizes = [fc_sizes]
 
+if not isinstance(kernel_sizes, list):
+   kernel_sizes = [kernel_sizes]
+
+if not isinstance(max_pooling, list):
+   max_pooling = [max_pooling]
+
+conv_layers_n = len(kernel_sizes)
 hidden_layers_n = args.fc_num
 initial_weights_seed = args.initial_weights_seed
 
@@ -88,27 +90,25 @@ epochs = args.epochs
 train_amount = args.train_amount
 test_amount = args.test_amount
 data_path = args.data_path
+test_data_path = args.test_data_path
+summary_file = args.summary_file
+
+#image_width = 128
+#image_height = 128
 
 image_width = 100
 image_height = 100
 
-#image_width = 28
-#image_height = 28
-
 # Network Parameters
-n_input = image_width * image_height 
-n_classes = 1 # Mtotal classes
+n_input = image_width * image_height
+n_classes = 2 # Mtotal classes
 
 batch_size = 64
 
 #eval_batch_size = n_classes * 100
-eval_batch_size = 250
+eval_batch_size = 50
 
 # tf Graph input
-#x = tf.placeholder(tf.float32, [None, n_input])
-#y = tf.placeholder(tf.float32, [None, n_classes])
-
-
 x_batch_ph = tf.placeholder(tf.float32, [None, n_input], name = 'x_batch')
 y_batch_ph = tf.placeholder(tf.float32, [None, n_classes], name = 'y_batch')
 pred_batch_ph = tf.placeholder(tf.float32, [None, n_classes], name = 'pred_batch')
@@ -117,6 +117,7 @@ dropout_ph = tf.placeholder(tf.float32, name = "dropout") #dropout (keep probabi
 accuracy_ph = tf.placeholder(tf.float32)
 train_accuracy_ph = tf.placeholder(tf.float32)
 loss_ph = tf.placeholder(tf.float32)
+learning_rate_ph = tf.placeholder(tf.float32)
 
 # Create some wrappers for simplicity
 def conv2d(x, W, b, strides = 1):
@@ -133,25 +134,27 @@ def maxpool2d(x, k=2):
 
 
 # Create model
-def conv_net(x, weights, biases, dropout):
+def conv_net(x, weights, biases, dropout, out_name = None):
     # Reshape input picture
     x = tf.reshape(x, shape = [-1, image_width, image_height, 1])
 
-    # Convolution Layer
-    conv1 = conv2d(x, weights['wc1'], biases['bc1'])
-    # Max Pooling (down-sampling)
-    conv1 = maxpool2d(conv1, k = 2)
+    conv = x
 
-    # Convolution Layer
-    conv2 = conv2d(conv1, weights['wc2'], biases['bc2'])
-    # Max Pooling (down-sampling)
-    conv2 = maxpool2d(conv2, k = 2)
+    for i in range(conv_layers_n):
+        ks = kernel_sizes[i]
+        fs = features[i]
+        mp = max_pooling[i]
+
+        # Convolution Layer
+        conv = conv2d(conv, weights['wc'][i], biases['bc'][i])
+        # Max Pooling (down-sampling)
+
+        if mp > 1:
+           conv = maxpool2d(conv, k = mp)
 
     # Fully connected layer
     # Reshape conv2 output to fit fully connected layer input
-    fc = tf.reshape(conv2, [-1, weights['wd'][0].get_shape().as_list()[0]])
-
-
+    fc = tf.reshape(conv, [-1, weights['wd'][0].get_shape().as_list()[0]])
 
     for i in range(hidden_layers_n):
         fc = tf.add(tf.matmul(fc, weights['wd'][i]), biases['bd'][i])
@@ -161,46 +164,213 @@ def conv_net(x, weights, biases, dropout):
 
 
     # Output, class prediction
-    out = tf.add(tf.matmul(fc, weights['out']), biases['out'])
+    out = tf.add(tf.matmul(fc, weights['out']), biases['out'], name = out_name)
     return out
 
 
 biases = {
-    'bc1': tf.Variable(tf.zeros([32])),
-    'bc2': tf.Variable(tf.constant(0.1, shape=[64], dtype=tf.float32)),
+    'bc': [],
     'bd': [],
-    'out': tf.Variable(tf.constant(0.1, shape=[n_classes]))
+    'out': None
 }
 
 
 # Store layers weight & bias
 weights = {
-    # 5x5 conv, 1 input, 32 outputs
-    'wc1': tf.Variable(tf.truncated_normal([kernel_size, kernel_size, 1, 32], stddev=0.1, seed = initial_weights_seed)),
-    # 5x5 conv, 32 inputs, 64 outputs
-    'wc2': tf.Variable(tf.truncated_normal([kernel_size, kernel_size, 32, 64], stddev=0.1, seed = initial_weights_seed)),
-    # fully connected, 7*7*64 inputs, 1024 outputs
+    'wc': [],
     'wd': [],
-     # 1024 inputs, n_classes outputs (class prediction)
-    'out': tf.Variable(tf.truncated_normal([fc_sizes[-1], n_classes], stddev=0.1, seed = initial_weights_seed))
+    'out': None
 }
 
 
 weights_copy = {
-    'wc1': tf.Variable(weights['wc1'].initialized_value()),
-    'wc2': tf.Variable(weights['wc2'].initialized_value()),
+    'wc': [],
     'wd': [],
-    'out': tf.Variable(weights['out'].initialized_value())
+    'out': None
 }
 
-for i in range(hidden_layers_n):
-  if i == 0:
-     weights['wd'].append(tf.Variable(tf.truncated_normal([int((image_width / 4) * (image_height / 4) * 64), fc_sizes[i]], stddev=0.1, seed = initial_weights_seed)))
-  else:
-     weights['wd'].append(tf.Variable(tf.truncated_normal([fc_sizes[i - 1], fc_sizes[i]], stddev=0.1, seed = initial_weights_seed)))
+def tensor_summary_value_to_variable(value):
+    fb = numpy.frombuffer(v.tensor.tensor_content, dtype = numpy.float32)
 
-  biases['bd'].append(tf.Variable(tf.constant(0.1, shape=[fc_sizes[i]])))
+    v.tensor.tensor_content = b''
+
+    shape = []
+    for d in v.tensor.tensor_shape.dim:
+        shape.append(d.size)
+    #fb.reshape(reversed(shape))
+    fb = fb.reshape(shape)
+
+    #w = tf.Variable.from_proto(v)
+    var = tf.Variable(fb)
+    fb = None
+    return var
+
+if summary_file is None:
+
+   pk = 1
+
+   inputs_n = 1
+
+   for i in range(conv_layers_n):
+      ks = kernel_sizes[i]
+      fs = features[i]
+      mp = max_pooling[i]
+
+      pk = pk * mp
+
+      if i == 0:
+         biases['bc'].append(tf.Variable(tf.zeros([fs])))
+      else:
+         biases['bc'].append(tf.Variable(tf.constant(0.1, shape=[fs], dtype=tf.float32)))
+
+      weights['wc'].append(tf.Variable(tf.truncated_normal([ks, ks, inputs_n, fs], stddev=0.1, seed = initial_weights_seed)))
+
+      inputs_n = fs
+
+   # fully connected, 7*7*64 inputs, 1024 outputs
+
+   for i in range(hidden_layers_n):
+      if i == 0:
+         weights['wd'].append(tf.Variable(tf.truncated_normal([int((image_width / pk) * (image_height / pk) * inputs_n), fc_sizes[i]], stddev=0.1, seed = initial_weights_seed)))
+      else:
+         weights['wd'].append(tf.Variable(tf.truncated_normal([fc_sizes[i - 1], fc_sizes[i]], stddev=0.1, seed = initial_weights_seed)))
+
+      biases['bd'].append(tf.Variable(tf.constant(0.1, shape=[fc_sizes[i]])))
+
+   weights['out'] = tf.Variable(tf.truncated_normal([fc_sizes[-1], n_classes], stddev=0.1, seed = initial_weights_seed))
+
+   biases['out'] = tf.Variable(tf.constant(0.1, shape=[n_classes]))
+
+
+if summary_file is not None:
+
+   ge = tf.train.summary_iterator(summary_file)
+
+   for e in ge:
+       #print(e)
+       #gc.collect()
+
+       for v in e.summary.value:
+
+           #gc.collect()
+           print(v.tag)
+           print(v.node_name)
+
+           #v.node_name = v.tag
+           #print(v.node_name)
+           loaded = True
+
+           if v.tag == 'kernel_size':
+              kernel_size = int(v.simple_value)
+           elif v.tag == 'fully_connected_layers':
+                hidden_layers_n = int(v.simple_value)
+                fc_sizes = [None] * hidden_layers_n
+                weights['wd'] = [None] * hidden_layers_n
+                biases['bd'] = [None] * hidden_layers_n
+           elif v.tag.startswith('fully_connected_layer_'):
+                split = v.tag.split('_')
+                index = int(split[3])
+                fc_sizes[index - 1] = int(v.simple_value)
+
+           elif v.tag == 'convolutional_layers':
+                conv_layers_n = int(v.simple_value)
+                kernel_sizes = [None] * conv_layers_n
+                features = [None] * conv_layers_n
+                max_pooling = [None] * conv_layers_n
+                weights['wc'] = [None] * conv_layers_n
+                biases['bc'] = [None] * conv_layers_n
+
+           elif v.tag.startswith('convolutional_layer_kernel_size_'):
+                split = v.tag.split('_')
+                index = int(split[-1])
+                kernel_sizes[index - 1] = int(v.simple_value)
+
+           elif v.tag.startswith('convolutional_layer_features_'):
+                split = v.tag.split('_')
+                index = int(split[-1])
+                features[index - 1] = int(v.simple_value)
+
+           elif v.tag.startswith('convolutional_layer_max_pooling_'):
+                split = v.tag.split('_')
+                index = int(split[-1])
+                max_pooling[index - 1] = int(v.simple_value)
+
+           elif v.node_name is not None:
+
+                if v.node_name == 'out-weights':
+                   w = tensor_summary_value_to_variable(v)
+                   weights['out'] = w
+                elif v.node_name == 'out-biases':
+                   b = tensor_summary_value_to_variable(v)
+                   biases['out'] = b
+                elif re.match('c[0-9]+-weights', v.node_name) :
+                   split = v.node_name.split('-')
+                   num = int(split[0][1:])
+                   w = tensor_summary_value_to_variable(v)
+                   weights['wc'][num - 1] = w
+                elif re.match('c[0-9]+-biases', v.node_name) :
+                   split = v.node_name.split('-')
+                   num = int(split[0][1:])
+                   b = tensor_summary_value_to_variable(v)
+                   biases['bc'][num - 1] = b
+                elif re.match('f[0-9]+-weights', v.node_name) :
+                   split = v.node_name.split('-')
+                   num = int(split[0][1:])
+                   w = tensor_summary_value_to_variable(v)
+                   weights['wd'][num - 1] = w
+                elif re.match('f[0-9]+-biases', v.node_name) :
+                   split = v.node_name.split('-')
+                   num = int(split[0][1:])
+                   b = tensor_summary_value_to_variable(v)
+                   biases['bd'][num - 1] = b
+                else:
+                   loaded = False
+
+           else:
+
+                loaded = False
+
+           if loaded:
+              if (v.tag is not None) and (len(v.tag) > 0):
+                 print(v.tag + ' loaded')
+              else:
+                 print(v.node_name + ' loaded')
+   e = None
+   ge = None
+
+
+for i in range(hidden_layers_n):
   weights_copy['wd'].append(tf.Variable(weights['wd'][i].initialized_value()))
+
+for i in range(conv_layers_n):
+  weights_copy['wc'].append(tf.Variable(weights['wc'][i].initialized_value()))
+
+weights_copy['out'] = tf.Variable(weights['out'].initialized_value())
+
+def euclidean_norm(a):
+    return tf.sqrt(tf.reduce_sum(tf.square(a)))
+
+def normalize(a):
+    return tf.div(a, euclidean_norm(a))
+
+def weights_change(a, b):
+    distance = euclidean_norm(tf.subtract(normalize(a), normalize(b)))
+    return distance
+
+def weights_change_summary():
+    l = []
+
+    for i in range(conv_layers_n):
+        wc = weights_change(weights['wc'][i], weights_copy['wc'][i])
+        l.append(tf.summary.scalar('wc' + str(i + 1), wc))
+
+    for i in range(hidden_layers_n):
+        wd = weights_change(weights['wd'][i], weights_copy['wd'][i])
+        l.append(tf.summary.scalar('wd' + str(i + 1), wd))
+
+    out = weights_change(weights['out'], weights_copy['out'])
+    l.append(tf.summary.scalar('out', out))
+    return tf.summary.merge(l)
 
 
 def input_data(file_name_prefix, amount, shuffle):
@@ -271,32 +441,7 @@ def input_data(file_name_prefix, amount, shuffle):
     data = tf.to_float(data)
     
     return data, labels
- 
-def euclidean_norm(a):
-    return tf.sqrt(tf.reduce_sum(tf.square(a)))
 
-def normalize(a):
-    return tf.div(a, euclidean_norm(a))
-    
-def weights_change(a, b):
-    distance = euclidean_norm(tf.subtract(normalize(a), normalize(b)))
-    return distance
-    
-def weights_change_summary():
-    l = []
-    wc1 = weights_change(weights['wc1'], weights_copy['wc1'])
-    wc2 = weights_change(weights['wc2'], weights_copy['wc2'])
-
-    for i in range(hidden_layers_n):
-        wd = weights_change(weights['wd'][i], weights_copy['wd'][i])
-        l.append(tf.summary.scalar('wd' + str(i + 1), wd))
-
-    out = weights_change(weights['out'], weights_copy['out'])
-    l.append(tf.summary.scalar('wc1', wc1))
-    l.append(tf.summary.scalar('wc2', wc2))
-    l.append(tf.summary.scalar('out', out))
-    return tf.summary.merge(l)                         
-    
 x, y = input_data('data', train_amount, shuffle = True)
 
 x.set_shape([image_height * image_width])
@@ -590,15 +735,18 @@ print("saving weights...")
 
 weights_summaries = []
 
-weights_summaries.append(tf.summary.tensor_summary('c1-weights', weights['wc1']))
-weights_summaries.append(tf.summary.tensor_summary('c1-biases', biases['bc1']))
-weights_summaries.append(tf.summary.tensor_summary('c2-weights', weights['wc2']))
-weights_summaries.append(tf.summary.tensor_summary('c2-biases', biases['bc2']))
+for i in range(conv_layers_n):
+    wname = 'c' + str(i + 1) + '-weights'
+    bname = 'c' + str(i + 1) + '-biases'
+    weights_summaries.append(tf.summary.tensor_summary(wname, weights['wc'][i]))
+    weights_summaries.append(tf.summary.tensor_summary(bname, biases['bc'][i]))
+
 for i in range(hidden_layers_n):
     wname = 'f' + str(i + 1) + '-weights'
     bname = 'f' + str(i + 1) + '-biases'
     weights_summaries.append(tf.summary.tensor_summary(wname, weights['wd'][i]))
     weights_summaries.append(tf.summary.tensor_summary(bname, biases['bd'][i]))
+
 weights_summaries.append(tf.summary.tensor_summary('out-weights', weights['out']))
 weights_summaries.append(tf.summary.tensor_summary('out-biases', biases['out']))
 
@@ -607,41 +755,6 @@ weights_summary = tf.summary.merge(weights_summaries)
 weights_summary_result = sess.run(weights_summary)
 train_writer.add_summary(weights_summary_result)
 train_writer.close()
-
-'''
-import os, datetime
-mydir = os.path.join(os.getcwd(), weights-datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S'))
-os.makedirs(mydir)
-
-array = sess.run(weights['wc1'])
-fname = 'c1.csv'
-numpy.savetxt(fname, array.flatten(), "%10.20f")
-array = sess.run(biases['bc1'])
-fname = 'c1-biases.csv'
-numpy.savetxt(fname, array.flatten(), "%10.20f")
-
-array = sess.run(weights['wc2'])
-fname = 'c2.csv'
-numpy.savetxt(fname, array.flatten(), "%10.20f")
-array = sess.run(biases['bc2'])
-fname = 'c2-biases.csv'
-numpy.savetxt(fname, array.flatten(), "%10.20f")
-
-for i in range(hidden_layers_n):
-    fname = 'f' + str(i + 1) + '.csv'
-    array = sess.run(weights['wd'][i])
-    numpy.savetxt(name, array.flatten(), "%10.20f")
-    fname = 'f' + str(i + 1) + '-biases.csv'
-    array = sess.run(biases['bd'][i])
-    numpy.savetxt(name, array.flatten(), "%10.20f")
-
-array = sess.run(weights['out'])
-fname = 'out.csv'
-numpy.savetxt(fname, array.flatten(), "%10.20f")
-array = sess.run(biases['out'])
-fname = 'out-biases.csv'
-numpy.savetxt(fname, array.flatten(), "%10.20f")
-'''
 
 coord.request_stop()
 coord.join()
