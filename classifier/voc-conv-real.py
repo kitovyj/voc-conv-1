@@ -69,7 +69,7 @@ parser.add_argument('--data-path', dest = 'data_path', default = './vocs_data3/'
 parser.add_argument('--test-data-path', dest = 'test_data_path', default = None, help = 'the path where input test data are stored')
 parser.add_argument('--test-amount', dest = 'test_amount', type = int, default = 500, help = 'number of test samples')
 parser.add_argument('--summary-file', dest = 'summary_file', default = None, help = 'the summary file where the trained weights and network parameters are stored')
-parser.add_argument('--regularization', dest = 'regularization_coeff', default = 100*5E-4, help = 'fully connected layers weights regularization')
+parser.add_argument('--regularization', dest = 'regularization_coeff', type = float, default = 100*5E-4, help = 'fully connected layers weights regularization')
 
 args = parser.parse_args()
 
@@ -465,7 +465,7 @@ x_batch, y_batch = tf.train.batch([x, y], batch_size = batch_size)
 pred = conv_net(x_batch_ph, weights, biases, dropout_ph)
 
 # Define loss and optimizer
-cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits = pred, labels = y_batch_ph))
+cost = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits = pred, labels = y_batch_ph))
 
 # L2 regularization for the fully connected parameters.
 
@@ -493,7 +493,7 @@ learning_rate = tf.train.exponential_decay(
     staircase = True)
 '''
 
-optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(cost)
+optimizer = tf.train.AdamOptimizer(learning_rate = learning_rate).minimize(cost)
 #optimizer = tf.train.MomentumOptimizer(learning_rate, 0.1).minimize(cost, global_step=batch)
 
 #try smaller values
@@ -682,7 +682,7 @@ def display_info(iteration, total):
     done = int((iteration * 100) / total)
     batch = int(iteration % batches_per_epoch);
 
-    print(str(done) + "% done" + ", epoch " + str(epoch) + ", batches: " + str(batch) + ", loss: " + str(loss_value) + ", train acc.: " + str(train_accuracy_value) + ", test acc.: " + str(accuracy_value))
+    print(str(done) + "% done" + ", epoch " + str(epoch) + ", batches: " + str(batch) + ", loss: " + "{:.9f}".format(loss_value) + ", train acc.: " + str(train_accuracy_value) + ", test acc.: " + str(accuracy_value))
 
 
 def write_summaries():
