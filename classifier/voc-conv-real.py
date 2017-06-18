@@ -602,7 +602,16 @@ print("starting learning session")
 print('fully connected layers: ' + str(len(fc_sizes)))
 for i in range(len(fc_sizes)):
     print('fully connected layer ' + str(i + 1) + ' size: ' + str(fc_sizes[i]))
-print("kernel size: " + str(kernel_size))
+
+for i in range(len(kernel_sizes)):
+    print('conv. layer ' + str(i + 1) + ' kernel size: ' + str(kernel_sizes[i]))
+
+for i in range(len(features)):
+    print('conv. layer ' + str(i + 1) + ' features: ' + str(features[i]))
+
+for i in range(len(max_pooling)):
+    print('conv. layer ' + str(i + 1) + ' max pooling: ' + str(max_pooling[i]))
+
 print("dropout probability: " + str(dropout))
 print("initial weights seed: " + str(initial_weights_seed))
 print("train amount: " + str(train_amount))
