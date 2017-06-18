@@ -540,6 +540,8 @@ train_writer = tf.summary.FileWriter('./train',  sess.graph)
 
 iterations = max(1, int(train_amount / batch_size)) * epochs
 
+const_summaries = []
+
 const_summaries.append(tf.summary.scalar('fully connected layers', tf.constant(len(fc_sizes))))
 
 for i in range(len(fc_sizes)):
