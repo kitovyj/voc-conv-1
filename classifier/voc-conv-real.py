@@ -110,7 +110,7 @@ image_height = 100
 
 # Network Parameters
 n_input = image_width * image_height
-n_classes = 2 # Mtotal classes
+n_classes = 1 # Mtotal classes
 
 batch_size = 64
 
@@ -136,7 +136,7 @@ def conv2d(x, W, b, strides = 1):
     return tf.nn.relu(x)
 
 
-def maxpool2d(x, k=2):
+def maxpool2d(x, k = 2):
     # MaxPool2D wrapper
     return tf.nn.max_pool(x, ksize=[1, k, k, 1], strides=[1, k, k, 1],
                           padding='SAME')
