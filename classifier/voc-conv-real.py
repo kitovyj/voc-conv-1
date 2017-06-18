@@ -540,20 +540,22 @@ train_writer = tf.summary.FileWriter('./train',  sess.graph)
 
 iterations = max(1, int(train_amount / batch_size)) * epochs
 
-'''
-array = sess.run(weights['wd1'])
-fname = 'wd1first.csv'
-numpy.savetxt(fname, array.flatten(), "%10.10f")
-'''
-
-
-const_summaries = []
-
-const_summaries.append(tf.summary.scalar('kernel size', tf.constant(kernel_size)))
 const_summaries.append(tf.summary.scalar('fully connected layers', tf.constant(len(fc_sizes))))
+
 for i in range(len(fc_sizes)):
     name = 'fully connected layer ' + str(i + 1) + ' size'
     const_summaries.append(tf.summary.scalar(name, tf.constant(fc_sizes[i])))
+
+const_summaries.append(tf.summary.scalar('convolutional layers', tf.constant(len(kernel_sizes))))
+
+for i in range(len(kernel_sizes)):
+    name = 'convolutional_layer_kernel_size_' + str(i + 1)
+    const_summaries.append(tf.summary.scalar(name, tf.constant(kernel_sizes[i])))
+    name = 'convolutional_layer_features_' + str(i + 1)
+    const_summaries.append(tf.summary.scalar(name, tf.constant(features[i])))
+    name = 'convolutional_layer_max_pooling_' + str(i + 1)
+    const_summaries.append(tf.summary.scalar(name, tf.constant(max_pooling[i])))
+
 const_summaries.append(tf.summary.scalar('dropout probablility', tf.constant(dropout)))
 const_summaries.append(tf.summary.scalar('epochs', tf.constant(epochs)))
 const_summaries.append(tf.summary.scalar('train amount', tf.constant(train_amount)))
