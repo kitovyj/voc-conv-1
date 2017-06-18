@@ -60,14 +60,14 @@ parser.add_argument('--features', dest = 'features', type = int, nargs = '+', de
 parser.add_argument('--max-pooling', dest = 'max_pooling', type = int, nargs = '+', default = [2, 2], help = 'convolutional layers max pooling')
 parser.add_argument('--fc-sizes', dest = 'fc_sizes', type = int, nargs = '+', default = 1024, help = 'fully connected layer size')
 parser.add_argument('--fc-num', dest = 'fc_num', type = int, default = 1, help = 'fully connected layers number')
-parser.add_argument('--learning-rate', dest = 'learning_rate', type = float, default = 0.00002, help = 'learning rate')
+parser.add_argument('--learning-rate', dest = 'learning_rate', type = float, default = 0.001, help = 'learning rate')
 parser.add_argument('--initial-weights-seed', dest = 'initial_weights_seed', type = int, default = None, help = 'initial weights seed')
 parser.add_argument('--dropout', dest = 'dropout', type = float, default = 0.0, help = 'drop out probability')
 parser.add_argument('--epochs', dest = 'epochs', type = int, default = 40, help = 'number of training epochs')
-parser.add_argument('--train-amount', dest = 'train_amount', type = int, default = 10000, help = 'number of training samples')
-parser.add_argument('--data-path', dest = 'data_path', default = './vera_data/', help = 'the path where input data are stored')
+parser.add_argument('--train-amount', dest = 'train_amount', type = int, default = 12454, help = 'number of training samples')
+parser.add_argument('--data-path', dest = 'data_path', default = './vocs_data3/', help = 'the path where input data are stored')
 parser.add_argument('--test-data-path', dest = 'test_data_path', default = None, help = 'the path where input test data are stored')
-parser.add_argument('--test-amount', dest = 'test_amount', type = int, default = 250, help = 'number of test samples')
+parser.add_argument('--test-amount', dest = 'test_amount', type = int, default = 500, help = 'number of test samples')
 parser.add_argument('--summary-file', dest = 'summary_file', default = None, help = 'the summary file where the trained weights and network parameters are stored')
 
 args = parser.parse_args()
@@ -463,7 +463,7 @@ x_batch, y_batch = tf.train.batch([x, y], batch_size = batch_size)
 pred = conv_net(x_batch_ph, weights, biases, dropout_ph)
 
 # Define loss and optimizer
-cost = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits = pred, labels = y_batch_ph))
+cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits = pred, labels = y_batch_ph))
 
 # L2 regularization for the fully connected parameters.
 
