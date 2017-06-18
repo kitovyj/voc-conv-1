@@ -69,6 +69,7 @@ parser.add_argument('--data-path', dest = 'data_path', default = './vocs_data3/'
 parser.add_argument('--test-data-path', dest = 'test_data_path', default = None, help = 'the path where input test data are stored')
 parser.add_argument('--test-amount', dest = 'test_amount', type = int, default = 500, help = 'number of test samples')
 parser.add_argument('--summary-file', dest = 'summary_file', default = None, help = 'the summary file where the trained weights and network parameters are stored')
+parser.add_argument('--regularization', dest = 'regularization_coeff', default = 100*5E-4, help = 'fully connected layers weights regularization')
 
 args = parser.parse_args()
 
@@ -101,6 +102,7 @@ test_amount = args.test_amount
 data_path = args.data_path
 test_data_path = args.test_data_path
 summary_file = args.summary_file
+regularization_coeff = args.regularization_coeff
 
 #image_width = 128
 #image_height = 128
@@ -473,7 +475,7 @@ for i in range(hidden_layers_n):
     regularizers = regularizers + tf.nn.l2_loss(weights['wd'][i])  
 
 # Add the regularization term to the loss.
-cost += 100*5e-4 * regularizers
+cost += regularization_coeff * regularizers
 
 
 # Optimizer: set up a variable that's incremented once per batch and
