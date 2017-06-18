@@ -46,6 +46,8 @@ deep completion : https://bamos.github.io/2016/08/09/deep-completion/
 
 '''
 
+parser = argparse.ArgumentParser()
+
 parser.add_argument('--kernel-sizes', dest = 'kernel_sizes', type = int, nargs = '+', default = [5, 5], help = 'convolutional layers kernel sizes')
 parser.add_argument('--features', dest = 'features', type = int, nargs = '+', default = [32, 64], help = 'convolutional layers features')
 parser.add_argument('--max-pooling', dest = 'max_pooling', type = int, nargs = '+', default = [2, 2], help = 'convolutional layers max pooling')
