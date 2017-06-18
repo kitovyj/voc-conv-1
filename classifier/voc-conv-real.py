@@ -702,26 +702,6 @@ for i in range(iterations):
         display_info(i, iterations)
         write_summaries();
 
-
-    '''
-    array = sess.run(weights['wc2'])
-    fname = 'conv' + str(i).zfill(9) + '.csv'
-    numpy.savetxt(fname, array.flatten(), "%10.10f")
-    '''
-
-    '''
-    array = sess.run(weights['out'])
-    fname = 'out' + str(i).zfill(9) + '.csv'
-    numpy.savetxt(fname, array.flatten(), "%10.10f")
-    '''
-
-
-'''
-array = sess.run(weights['wd1'])
-fname = 'wd1last.csv'
-numpy.savetxt(fname, array.flatten(), "%10.10f")
-'''
-
 #model = td.Model()
 #model.add(pred, sess)
 #model.save("model.pkl")
