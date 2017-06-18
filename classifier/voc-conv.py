@@ -543,7 +543,7 @@ fname = 'wd1last.csv'
 numpy.savetxt(fname, array.flatten(), "%10.10f")
 '''
 
-test_accuracy(iterations, iterations)
+calc_test_accuracy()
 
 s = sess.run(train_summary, feed_dict = { accuracy_ph: accuracy_value })
 train_writer.add_summary(s)
