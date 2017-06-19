@@ -52,6 +52,7 @@ import tensorflow as tf
 import tf_visualization
 import argparse
 import time
+import re
 
 parser = argparse.ArgumentParser()
 
