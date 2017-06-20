@@ -189,16 +189,16 @@ def crop_around_center(image, width, height):
 
 def augment(gray8):
 
+    # add noise
+
+    # gray8 = skimage.util.random_noise(gray8, mode = 's&p')
+    gray8 = skimage.util.random_noise(gray8, mode = 'gaussian')
+
     # augment volume
 
     rc = random_color_aug_coeff()
 
-    gray8 = rgb.astype(float)
+    gray8 = gray8.astype(float)
     gray8[:] *= rc
-
-    # add noise
-
-    gray8 = skimage.utils.random_noise(gray8, mode = 'salt & pepper')
-    gray8 = skimage.utils.random_noise(gray8, mode = 'gaussian')
 
     return gray8
