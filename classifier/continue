@@ -1,1 +1,1 @@
-python3 -u ./voc-conv-real.py --data-path ./vocs_data3/  --epochs 50 --fc-num 3 --fc-sizes 1024 512 256 --dropout 0.5 --summary-file ./pretrained
+python3 -u ./voc-conv-real.py --data-path ./vocs_data3/  --epochs 50 --fc-num 3 --fc-sizes 1024 512 256 --dropout 0.7 --summary-file ./pretrained1
