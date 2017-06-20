@@ -61,7 +61,7 @@ parser.add_argument('--features', dest = 'features', type = int, nargs = '+', de
 parser.add_argument('--max-pooling', dest = 'max_pooling', type = int, nargs = '+', default = [2, 2], help = 'convolutional layers max pooling')
 parser.add_argument('--fc-sizes', dest = 'fc_sizes', type = int, nargs = '+', default = 1024, help = 'fully connected layer size')
 parser.add_argument('--fc-num', dest = 'fc_num', type = int, default = 1, help = 'fully connected layers number')
-parser.add_argument('--learning-rate', dest = 'learning_rate', type = float, default = 0.001, help = 'learning rate')
+parser.add_argument('--learning-rate', dest = 'learning_rate', type = float, default = 0.0001, help = 'learning rate')
 parser.add_argument('--initial-weights-seed', dest = 'initial_weights_seed', type = int, default = None, help = 'initial weights seed')
 parser.add_argument('--dropout', dest = 'dropout', type = float, default = 0.0, help = 'drop out probability')
 parser.add_argument('--epochs', dest = 'epochs', type = int, default = 40, help = 'number of training epochs')
