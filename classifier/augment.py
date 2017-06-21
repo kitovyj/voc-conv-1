@@ -189,6 +189,14 @@ def crop_around_center(image, width, height):
 
 def augment(gray8):
 
+#    gray8 = numpy.squeeze(gray8)
+    return np.asarray(gray8.astype(np.float32))
+
+    print('augment')
+
+    image_width = 100
+    image_height = 100
+
     # add noise
 
     # gray8 = skimage.util.random_noise(gray8, mode = 's&p')
@@ -198,7 +206,23 @@ def augment(gray8):
 
     rc = random_color_aug_coeff()
 
-    gray8 = gray8.astype(float)
+    gray8 = gray8.astype(np.float32)
     gray8[:] *= rc
 
-    return gray8
+    shape = gray8.shape
+
+    resized = numpy.zeros((233, 100), dtype = np.float32)
+
+    max_width = min(shape[1], 100)
+
+    resized[0:233, 0:max_width] = gray8[:, 0:max_width]
+
+    resized = scipy.misc.imresize(resized, (image_width, image_height), interp='nearest')
+
+    #resized = resized[:, None]
+
+    resized = np.asarray(resized)
+
+    print('augment1')
+
+    return resized

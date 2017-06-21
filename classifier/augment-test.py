@@ -33,26 +33,26 @@ for i in range(64):
 
     #im = im.astype(numpy.uint8)
 
-    shape = im.shape
+    ##shape = im.shape
     #mx = max(shape[0], shape[1])
 
 
 
-    resized = numpy.zeros((233, 100))
+    ##resized = numpy.zeros((233, 100))
 
-    max_width = min(shape[1], 100)
+    ##max_width = min(shape[1], 100)
 
-    resized[0:233, 0:max_width] = im
+    ##resized[0:233, 0:max_width] = im
 
 
 
 
     #resized[0:shape[0], 0:shape[1]] = im
 
-    resized = scipy.misc.imresize(resized, (image_width, image_height), interp='nearest')
+    ##resized = scipy.misc.imresize(resized, (image_width, image_height), interp='nearest')
 
 
-    scipy.misc.imsave('out' + str(i) + '.png', resized)
+    scipy.misc.imsave('out' + str(i) + '.png', im)
 
 et = time.time()
 total_time += et - st

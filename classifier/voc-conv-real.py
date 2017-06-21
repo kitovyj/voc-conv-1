@@ -48,11 +48,16 @@ deep completion : https://bamos.github.io/2016/08/09/deep-completion/
 
 import sys
 import numpy
-import tensorflow as tf
-import tf_visualization
 import argparse
 import time
 import re
+#import augment
+import scipy.misc
+from scipy.ndimage import zoom
+import skimage
+import random
+import tensorflow as tf
+import tf_visualization
 
 parser = argparse.ArgumentParser()
 
@@ -61,7 +66,7 @@ parser.add_argument('--features', dest = 'features', type = int, nargs = '+', de
 parser.add_argument('--max-pooling', dest = 'max_pooling', type = int, nargs = '+', default = [2, 2], help = 'convolutional layers max pooling')
 parser.add_argument('--fc-sizes', dest = 'fc_sizes', type = int, nargs = '+', default = 1024, help = 'fully connected layer size')
 parser.add_argument('--fc-num', dest = 'fc_num', type = int, default = 1, help = 'fully connected layers number')
-parser.add_argument('--learning-rate', dest = 'learning_rate', type = float, default = 0.0001, help = 'learning rate')
+parser.add_argument('--learning-rate', dest = 'learning_rate', type = float, default = 0.001, help = 'learning rate')
 parser.add_argument('--initial-weights-seed', dest = 'initial_weights_seed', type = int, default = None, help = 'initial weights seed')
 parser.add_argument('--dropout', dest = 'dropout', type = float, default = 0.0, help = 'drop out probability')
 parser.add_argument('--epochs', dest = 'epochs', type = int, default = 40, help = 'number of training epochs')
@@ -385,7 +390,73 @@ def weights_change_summary():
     return tf.summary.merge(l)
 
 
-def input_data(file_name_prefix, amount, shuffle):
+def random_color_aug_coeff():
+    aug_range = 0.3
+    c = 1.0 + aug_range - 2 * aug_range * random.random();
+    return c
+
+def augment(gray8):
+
+
+    #time.sleep(1.0)
+
+    #return numpy.asarray(gray8.astype(numpy.float32))
+
+    #return gray8
+
+    #print('augment')
+
+    gray8 = numpy.squeeze(gray8)
+
+    image_width = 100
+    image_height = 100
+
+    # add noise
+
+    # gray8 = skimage.util.random_noise(gray8, mode = 's&p')
+    gray8 = skimage.util.random_noise(gray8, mode = 'gaussian')
+
+    # augment volume
+
+    rc = random_color_aug_coeff()
+
+    gray8 = gray8.astype(numpy.float32)
+    gray8 *= rc
+
+
+
+    #gray8[gray8 > 255] = 255
+    #gray8 = gray8.astype(numpy.uint8)
+
+
+
+    shape = gray8.shape
+
+    resized = numpy.zeros((233, 100), dtype = numpy.float32)
+
+    max_width = min(shape[1], 100)
+
+    resized[0:233, 0:max_width] = gray8[:, 0:max_width]
+
+    resized = scipy.misc.imresize(resized, (image_height, image_width), interp='nearest')
+
+    resized = resized.astype(numpy.float32)
+
+    resized = resized[:, None]
+
+    #print(resized.shape)
+
+    #resized = numpy.asarray(resized)
+
+    #print('augment1')
+
+    #return gray8
+
+
+    return resized
+
+
+def input_data(file_name_prefix, amount, shuffle, do_augment):
     
 #    data_folder = '/media/sf_vb-shared/vocs_data/'
     range_queue = tf.train.range_input_producer(amount, shuffle = shuffle)
@@ -402,7 +473,7 @@ def input_data(file_name_prefix, amount, shuffle):
     
     abs_index_str = tf.as_string(abs_index, width = 9, fill = '0')
     
-    png_file_name = tf.string_join([tf.constant(data_path), tf.constant(file_name_prefix), abs_index_str, tf.constant('.png')])
+    png_file_name = tf.string_join([tf.constant(data_path), tf.constant(file_name_prefix), abs_index_str, tf.constant('r.png')])
     csv_file_name = tf.string_join([tf.constant(data_path), tf.constant(file_name_prefix), abs_index_str, tf.constant('.csv')])
     
 #    if shuffle == False:
@@ -444,17 +515,38 @@ def input_data(file_name_prefix, amount, shuffle):
     data = tf.image.decode_png(png_data)
 
     #data_shape = tf.shape(data);
-    #data = tf.Print(data, [data_shape], message = "Data shape: ")            
-    #data = tf.image.rgb_to_grayscale(data)
-#    data = tf.image.resize_images(data, image_height, image_width)
-    
-    
-    data = tf.reshape(data, [-1])    
-    data = tf.to_float(data)
-    
-    return data, labels
+    #data = tf.Print(data, [data_shape], message = "Data shape: ")
 
-x, y = input_data('data', train_amount, shuffle = True)
+    '''
+    if do_augment:
+       data1 = tf.py_func(augment.augment, [data], [tf.float32])[0]
+       data1.set_shape((100, 100))
+    else:
+       data1 = data
+
+    '''
+    data1 = tf.py_func(augment, [data], [tf.float32])[0]
+#    data1.set_shape((100, 100, 1))
+
+
+    #data_shape = tf.shape(data1);
+    #png_data = tf.Print(png_data, [data_shape], message = "This is data1 shape: ")
+
+    #data1 = tf.image.decode_png(png_data)
+
+    #data1 = tf.convert_to_tensor(data1, dtype = tf.float32)
+
+    #data = tf.image.rgb_to_grayscale(data)
+
+    #data1 = tf.image.resize_images(data1, [image_height, image_width])
+    
+    
+    data1 = tf.reshape(data1, [-1])
+    data1 = tf.to_float(data1)
+
+    return data1, labels
+
+x, y = input_data('data', train_amount, shuffle = True, do_augment = True)
 
 x.set_shape([image_height * image_width])
 y.set_shape([n_classes])
@@ -509,7 +601,7 @@ optimizer = tf.train.AdamOptimizer(learning_rate = learning_rate).minimize(cost)
 
 # Define evaluation pipeline
 
-x1, y1 = input_data('test', test_amount, shuffle = False)
+x1, y1 = input_data('test', test_amount, shuffle = False, do_augment = True)
 x1.set_shape([image_height * image_width])
 y1.set_shape([n_classes])
 
@@ -535,6 +627,7 @@ grid_orig = tf_visualization.put_kernels_on_color_grid (weights_copy['wc'][0], g
 
 # the end of graph construction
 
+#sess = tf.Session(config = tf.ConfigProto(operation_timeout_in_ms = 200000, inter_op_parallelism_threads = 1000, intra_op_parallelism_threads = 1))
 sess = tf.Session()
 
 train_writer = tf.summary.FileWriter('./train',  sess.graph)
@@ -635,6 +728,8 @@ sess.run(init)
 coord = tf.train.Coordinator()
 
 threads = tf.train.start_queue_runners(sess = sess, coord = coord)
+
+
 
 accuracy_value = 0
 class_accuracies = numpy.zeros(n_classes + 1)
