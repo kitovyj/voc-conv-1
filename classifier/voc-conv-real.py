@@ -70,7 +70,7 @@ parser.add_argument('--learning-rate', dest = 'learning_rate', type = float, def
 parser.add_argument('--initial-weights-seed', dest = 'initial_weights_seed', type = int, default = None, help = 'initial weights seed')
 parser.add_argument('--dropout', dest = 'dropout', type = float, default = 0.0, help = 'drop out probability')
 parser.add_argument('--epochs', dest = 'epochs', type = int, default = 40, help = 'number of training epochs')
-parser.add_argument('--train-amount', dest = 'train_amount', type = int, default = 12454, help = 'number of training samples')
+parser.add_argument('--train-amount', dest = 'train_amount', type = int, default = 1, help = 'number of training samples')
 parser.add_argument('--data-path', dest = 'data_path', default = './vocs_data3/', help = 'the path where input data are stored')
 parser.add_argument('--test-data-path', dest = 'test_data_path', default = None, help = 'the path where input test data are stored')
 parser.add_argument('--test-amount', dest = 'test_amount', type = int, default = 500, help = 'number of test samples')
@@ -391,12 +391,16 @@ def weights_change_summary():
 
 
 def random_color_aug_coeff():
-    aug_range = 0.3
+    aug_range = 0.5
     c = 1.0 + aug_range - 2 * aug_range * random.random();
     return c
 
-def augment(gray8):
 
+_i = 0
+
+def prepare(gray8, do_augment):
+
+    global _i
 
     #time.sleep(1.0)
 
@@ -411,23 +415,35 @@ def augment(gray8):
     image_width = 100
     image_height = 100
 
-    # add noise
+    if do_augment:
 
-    # gray8 = skimage.util.random_noise(gray8, mode = 's&p')
-    gray8 = skimage.util.random_noise(gray8, mode = 'gaussian')
+       # add noise
 
-    # augment volume
+       # gray8 = skimage.util.random_noise(gray8, mode = 's&p')
 
-    rc = random_color_aug_coeff()
+       # change volume
 
-    gray8 = gray8.astype(numpy.float32)
-    gray8 *= rc
+       gray8 = gray8.astype(numpy.float32)
 
+       gray8 /= 255.
 
+       rc = random_color_aug_coeff()
 
-    #gray8[gray8 > 255] = 255
-    #gray8 = gray8.astype(numpy.uint8)
+       gray8 *= rc
 
+       gray8[gray8 > 1.0] = 1.0
+
+         # converts to 0..1, float
+
+       gray8 = skimage.util.random_noise(gray8, mode = 'gaussian')
+
+       gray8[gray8 > 1.0] = 1.0
+
+       gray8 *= 255
+
+    else:
+
+       gray8 = gray8.astype(numpy.float32)
 
 
     shape = gray8.shape
@@ -438,11 +454,25 @@ def augment(gray8):
 
     resized[0:233, 0:max_width] = gray8[:, 0:max_width]
 
+
+
+
+    # resize rescales the image if it's not uint8!
+
+    resized = resized.astype(numpy.uint8)
     resized = scipy.misc.imresize(resized, (image_height, image_width), interp='nearest')
 
-    resized = resized.astype(numpy.float32)
-
-    resized = resized[:, None]
+    '''
+    if do_augment:
+       fn = 'aout'
+    else:
+       fn = 'out'
+    _i = _i + 1
+    if _i > 20:
+       _i = 0
+    u8 = resized.astype(numpy.uint8)
+    scipy.misc.toimage(u8).save(fn + str(_i) + '.png')
+    '''
 
     #print(resized.shape)
 
@@ -452,9 +482,18 @@ def augment(gray8):
 
     #return gray8
 
+    resized = resized.astype(numpy.float32)
+
+    resized = resized[:, None]
 
     return resized
 
+
+def just_prepare(gray8):
+    return prepare(gray8, do_augment = False)
+
+def prepare_and_augment(gray8):
+    return prepare(gray8, do_augment = True)
 
 def input_data(file_name_prefix, amount, shuffle, do_augment):
     
@@ -517,15 +556,13 @@ def input_data(file_name_prefix, amount, shuffle, do_augment):
     #data_shape = tf.shape(data);
     #data = tf.Print(data, [data_shape], message = "Data shape: ")
 
-    '''
-    if do_augment:
-       data1 = tf.py_func(augment.augment, [data], [tf.float32])[0]
-       data1.set_shape((100, 100))
-    else:
-       data1 = data
 
-    '''
-    data1 = tf.py_func(augment, [data], [tf.float32])[0]
+    if do_augment:
+       data1 = tf.py_func(prepare_and_augment, [data], [tf.float32])[0]
+    else:
+       data1 = tf.py_func(just_prepare, [data], [tf.float32])[0]
+
+
 #    data1.set_shape((100, 100, 1))
 
 
@@ -601,7 +638,7 @@ optimizer = tf.train.AdamOptimizer(learning_rate = learning_rate).minimize(cost)
 
 # Define evaluation pipeline
 
-x1, y1 = input_data('test', test_amount, shuffle = False, do_augment = True)
+x1, y1 = input_data('test', test_amount, shuffle = False, do_augment = False)
 x1.set_shape([image_height * image_width])
 y1.set_shape([n_classes])
 
