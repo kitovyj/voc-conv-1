@@ -659,6 +659,8 @@ const_summaries.append(tf.summary.scalar('epochs', tf.constant(epochs)))
 const_summaries.append(tf.summary.scalar('train amount', tf.constant(train_amount)))
 const_summaries.append(tf.summary.scalar('test amount', tf.constant(test_amount)))
 const_summaries.append(tf.summary.scalar('learning rate', tf.constant(learning_rate)))
+const_summaries.append(tf.summary.scalar('regularization', tf.constant(regularization_coeff)))
+
 if initial_weights_seed is None:
    const_summaries.append(tf.summary.scalar('initial weights seed', tf.constant(-1)))
 else:
@@ -710,6 +712,7 @@ for i in range(len(max_pooling)):
 
 print("dropout probability: " + str(dropout))
 print("learning rate: " + str(learning_rate))
+print("regularization coefficient: " + str(regularization_coeff))
 print("initial weights seed: " + str(initial_weights_seed))
 print("train amount: " + str(train_amount))
 print("test amount: " + str(test_amount))
@@ -765,8 +768,6 @@ def calc_train_accuracy(pred, y):
     else:
         train_accuracy_value = train_accuracy_value * (1 - alpha) + alpha * acc
 
-loss_value = 0
-
 def display_info(iteration, total):
 
     global accuracy_value
@@ -801,18 +802,17 @@ for i in range(iterations):
     x, y = sess.run([x_batch, y_batch], feed_dict = { dropout_ph: dropout } )
 
     if i % summary_interval == 0:
-        #print("Minibatch Loss= " + "{:.6f}".format(c))
         calc_test_accuracy()
-
-    # OPTMIZE CALC TRAIN ACCURACY!!!!
 
     _, loss_value, p = sess.run([optimizer, cost, pred], feed_dict = { x_batch_ph: x, y_batch_ph : y, dropout_ph: dropout } )
 
-    calc_train_accuracy(p, y)
+    #calc_train_accuracy(p, y)
 
     if i % summary_interval == 0:
         display_info(i, iterations)
         write_summaries();
+
+    #sys.exit()
 
 #model = td.Model()
 #model.add(pred, sess)
