@@ -70,7 +70,7 @@ parser.add_argument('--learning-rate', dest = 'learning_rate', type = float, def
 parser.add_argument('--initial-weights-seed', dest = 'initial_weights_seed', type = int, default = None, help = 'initial weights seed')
 parser.add_argument('--dropout', dest = 'dropout', type = float, default = 0.0, help = 'drop out probability')
 parser.add_argument('--epochs', dest = 'epochs', type = int, default = 40, help = 'number of training epochs')
-parser.add_argument('--train-amount', dest = 'train_amount', type = int, default = 1, help = 'number of training samples')
+parser.add_argument('--train-amount', dest = 'train_amount', type = int, default = 12454, help = 'number of training samples')
 parser.add_argument('--data-path', dest = 'data_path', default = './vocs_data3/', help = 'the path where input data are stored')
 parser.add_argument('--test-data-path', dest = 'test_data_path', default = None, help = 'the path where input test data are stored')
 parser.add_argument('--test-amount', dest = 'test_amount', type = int, default = 500, help = 'number of test samples')

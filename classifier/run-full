@@ -1,1 +1,1 @@
-python3 -u ./voc-conv-real.py --data-path ./vocs_data3/ --epochs 50 --kernel-sizes 5 5 3 3 3 3 3 3 3 --features 64 64 64 128 128 128 128 128 256 --max-pooling 2 2 1 1 1 1 1 1 1 --fc-num 2 --fc-sizes 2048 2048 --dropout 0.7 --regularization 0.005 --learning-rate 0.001
+python3 -u ./voc-conv-real.py --data-path ./vocs_data3/ --epochs 120 --kernel-sizes 5 5 3 3 3 3 3 3 3 --features 64 64 64 128 128 128 256 256 256 --max-pooling 2 2 1 1 1 1 1 1 1 --fc-num 2 --fc-sizes 2048 2048 --dropout 0.5 --regularization 0.0005 --learning-rate 0.0001
