@@ -620,8 +620,8 @@ pred1 = conv_net(x1_batch, weights, biases, dropout_ph)
 correct_pred = tf.equal(tf.round(tf.sigmoid(pred_batch_ph)), y_batch_ph)
 accuracy = tf.reduce_mean(tf.cast(correct_pred, tf.float32))
 
-grid = tf_visualization.put_kernels_on_color_grid (weights['wc'][0], grid_Y = 4, grid_X = 8)
-grid_orig = tf_visualization.put_kernels_on_color_grid (weights_copy['wc'][0], grid_Y = 4, grid_X = 8)
+grid = tf_visualization.put_kernels_on_color_grid (weights['wc'][0], grid_Y = 8, grid_X = 8)
+grid_orig = tf_visualization.put_kernels_on_color_grid (weights_copy['wc'][0], grid_Y = 8, grid_X = 8)
 #grid = tf_visualization.put_averaged_kernels_on_color_grid (weights['wc2'], grid_Y = 8, grid_X = 8)
 #grid = tf_visualization.put_fully_connected_on_grid (weights['wd1'], grid_Y = 25, grid_X = 25)
 
