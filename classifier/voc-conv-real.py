@@ -806,7 +806,7 @@ for i in range(iterations):
 
     _, loss_value, p = sess.run([optimizer, cost, pred], feed_dict = { x_batch_ph: x, y_batch_ph : y, dropout_ph: dropout } )
 
-    #calc_train_accuracy(p, y)
+    calc_train_accuracy(p, y)
 
     if i % summary_interval == 0:
         display_info(i, iterations)
