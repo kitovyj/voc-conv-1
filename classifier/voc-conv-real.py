@@ -51,10 +51,8 @@ import numpy
 import argparse
 import time
 import re
-#import augment
+import augment
 import scipy.misc
-from scipy.ndimage import zoom
-import skimage
 import random
 import tensorflow as tf
 import tf_visualization
