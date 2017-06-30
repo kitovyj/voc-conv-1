@@ -601,12 +601,10 @@ if initial_weights_seed is None:
 else:
    const_summaries.append(tf.summary.scalar('initial weights seed', tf.constant(initial_weights_seed)))
 
+const_summaries.append(tf.summary.image('conv1orig', grid_orig, max_outputs = 1))
+
 const_summary = tf.summary.merge(const_summaries)
 
-#write const summaries
-
-const_summary_result = sess.run(const_summary)
-train_writer.add_summary(const_summary_result)
 
 #_, summary = sess.run([optimizer, wc1_summary], feed_dict = {keep_prob: dropout} )
 # _ = sess.run([optimizer], feed_dict = {keep_prob: dropout} )
@@ -616,7 +614,6 @@ train_summaries = []
 
 train_summaries.append(weights_change_summary())
 train_summaries.append(tf.summary.image('conv1/features', grid, max_outputs = 1))
-train_summaries.append(tf.summary.image('conv1orig', grid_orig, max_outputs = 1))
 train_summaries.append(tf.summary.scalar('accuracy', accuracy_ph))
 train_summaries.append(tf.summary.scalar('train_accuracy', train_accuracy_ph))
 train_summaries.append(tf.summary.scalar('loss', loss_ph))
@@ -663,6 +660,11 @@ print("summary interval: " + str(summary_interval))
 init = tf.group(tf.global_variables_initializer(), tf.local_variables_initializer())
 
 sess.run(init)
+
+#write const summaries
+
+const_summary_result = sess.run(const_summary)
+train_writer.add_summary(const_summary_result)
 
 coord = tf.train.Coordinator()
 
