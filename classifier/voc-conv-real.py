@@ -132,6 +132,7 @@ dropout_ph = tf.placeholder(tf.float32, name = "dropout") #dropout (keep probabi
 accuracy_ph = tf.placeholder(tf.float32)
 train_accuracy_ph = tf.placeholder(tf.float32)
 loss_ph = tf.placeholder(tf.float32)
+cost_ph = tf.placeholder(tf.float32)
 learning_rate_ph = tf.placeholder(tf.float32)
 
 # Create some wrappers for simplicity
@@ -493,7 +494,7 @@ x_batch, y_batch = tf.train.batch([x, y], batch_size = batch_size)
 pred = conv_net(x_batch_ph, weights, biases, dropout_ph)
 
 # Define loss and optimizer
-cost = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits = pred, labels = y_batch_ph))
+loss = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits = pred, labels = y_batch_ph))
 
 # L2 regularization for the fully connected parameters.
 
@@ -503,7 +504,7 @@ for i in range(hidden_layers_n):
     regularizers = regularizers + tf.nn.l2_loss(weights['wd'][i])  
 
 # Add the regularization term to the loss.
-cost += regularization_coeff * regularizers
+cost = loss + regularization_coeff * regularizers
 
 
 # Optimizer: set up a variable that's incremented once per batch and
@@ -617,6 +618,7 @@ train_summaries.append(tf.summary.image('conv1/features', grid, max_outputs = 1)
 train_summaries.append(tf.summary.scalar('accuracy', accuracy_ph))
 train_summaries.append(tf.summary.scalar('train_accuracy', train_accuracy_ph))
 train_summaries.append(tf.summary.scalar('loss', loss_ph))
+train_summaries.append(tf.summary.scalar('cost', cost_ph))
 
 class_accuracies_ph = [None]*(n_classes + 1)
 
@@ -675,6 +677,7 @@ threads = tf.train.start_queue_runners(sess = sess, coord = coord)
 accuracy_value = 0
 class_accuracies = numpy.zeros(n_classes + 1)
 loss_value = 0
+cost_value = 0
 train_accuracy_value = -1
 
 def calc_test_accuracy():
@@ -711,13 +714,14 @@ def display_info(iteration, total):
     global train_accuracy_value
     global class_accuracies
     global loss_value
+    global cost_value
 
     batches_per_epoch = train_amount / batch_size
     epoch = int(iteration / batches_per_epoch)
     done = int((iteration * 100) / total)
     batch = int(iteration % batches_per_epoch);
 
-    print(str(done) + "% done" + ", epoch " + str(epoch) + ", batches: " + str(batch) + ", loss: " + "{:.9f}".format(loss_value) + ", train acc.: " + str(train_accuracy_value) + ", test acc.: " + str(accuracy_value))
+    print(str(done) + "% done" + ", epoch " + str(epoch) + ", batches: " + str(batch) + ", loss: " + "{:.9f}".format(loss_value) +  ", cost: " + "{:.9f}".format(cost_value) + ", train acc.: " + str(train_accuracy_value) + ", test acc.: " + str(accuracy_value))
 
 
 def write_summaries():
@@ -727,7 +731,7 @@ def write_summaries():
     global train_accuracy_value
     global loss_value
 
-    fd = { accuracy_ph: accuracy_value, train_accuracy_ph: train_accuracy_value, loss_ph: loss_value }
+    fd = { accuracy_ph: accuracy_value, train_accuracy_ph: train_accuracy_value, loss_ph: loss_value, cost_ph: cost_value }
     for n in range(n_classes + 1):
         fd[class_accuracies_ph[n]] = class_accuracies[n]
 
@@ -741,7 +745,7 @@ for i in range(iterations):
     if i % summary_interval == 0:
         calc_test_accuracy()
 
-    _, loss_value, p = sess.run([optimizer, cost, pred], feed_dict = { x_batch_ph: x, y_batch_ph : y, dropout_ph: dropout } )
+    _, loss_value, cost_value, p = sess.run([optimizer, loss, cost, pred], feed_dict = { x_batch_ph: x, y_batch_ph : y, dropout_ph: dropout } )
 
     calc_train_accuracy(p, y)
 
