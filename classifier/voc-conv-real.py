@@ -389,111 +389,11 @@ def weights_change_summary():
     l.append(tf.summary.scalar('out', out))
     return tf.summary.merge(l)
 
-
-def random_color_aug_coeff():
-    aug_range = 0.5
-    c = 1.0 + aug_range - 2 * aug_range * random.random();
-    return c
-
-
-_i = 0
-
-def prepare(gray8, do_augment):
-
-    global _i
-
-    #time.sleep(1.0)
-
-    #return numpy.asarray(gray8.astype(numpy.float32))
-
-    #return gray8
-
-    #print('augment')
-
-    gray8 = numpy.squeeze(gray8)
-
-    image_width = 100
-    image_height = 100
-
-    if do_augment:
-
-       # add noise
-
-       # gray8 = skimage.util.random_noise(gray8, mode = 's&p')
-
-       # change volume
-
-       gray8 = gray8.astype(numpy.float32)
-
-       gray8 /= 255.
-
-       rc = random_color_aug_coeff()
-
-       gray8 *= rc
-
-       gray8[gray8 > 1.0] = 1.0
-
-         # converts to 0..1, float
-
-       gray8 = skimage.util.random_noise(gray8, mode = 'gaussian')
-
-       gray8[gray8 > 1.0] = 1.0
-
-       gray8 *= 255
-
-    else:
-
-       gray8 = gray8.astype(numpy.float32)
-
-
-    shape = gray8.shape
-
-    resized = numpy.zeros((233, 100), dtype = numpy.float32)
-
-    max_width = min(shape[1], 100)
-
-    resized[0:233, 0:max_width] = gray8[:, 0:max_width]
-
-
-
-
-    # resize rescales the image if it's not uint8!
-
-    resized = resized.astype(numpy.uint8)
-    resized = scipy.misc.imresize(resized, (image_height, image_width), interp='nearest')
-
-    '''
-    if do_augment:
-       fn = 'aout'
-    else:
-       fn = 'out'
-    _i = _i + 1
-    if _i > 20:
-       _i = 0
-    u8 = resized.astype(numpy.uint8)
-    scipy.misc.toimage(u8).save(fn + str(_i) + '.png')
-    '''
-
-    #print(resized.shape)
-
-    #resized = numpy.asarray(resized)
-
-    #print('augment1')
-
-    #return gray8
-
-    resized = resized.astype(numpy.float32)
-
-    resized = resized[:, None]
-
-    return resized
-
-
 def just_prepare(gray8):
-    return prepare(gray8, do_augment = False)
+    return augment.prepare(gray8, do_augment = False)
 
 def prepare_and_augment(gray8):
-    return prepare(gray8, do_augment = True)
+    return augment.prepare(gray8, do_augment = True)
 
 def input_data(file_name_prefix, amount, shuffle, do_augment):
     

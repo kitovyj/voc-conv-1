@@ -18,12 +18,14 @@ im_src = scipy.misc.imread(file_name, mode = 'L')
 
 total_time = 0
 
-st = time.time()
 
 for i in range(64):
 
     #im = im_src
-    im = augment.augment(im_src)
+    st = time.time()
+    im = augment.prepare(im_src, True)
+    et = time.time()
+    total_time += et - st
 
     #im = im_src
 
@@ -52,9 +54,7 @@ for i in range(64):
     ##resized = scipy.misc.imresize(resized, (image_width, image_height), interp='nearest')
 
 
-    scipy.misc.imsave('out' + str(i) + '.png', im)
+    scipy.misc.imsave('./augtest/out' + str(i) + '.png', numpy.squeeze(im))
 
-et = time.time()
-total_time += et - st
 
 print('total time: ' + str(total_time))
