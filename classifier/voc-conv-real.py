@@ -730,6 +730,7 @@ def write_summaries():
     global class_accuracies
     global train_accuracy_value
     global loss_value
+    global cost_value
 
     fd = { accuracy_ph: accuracy_value, train_accuracy_ph: train_accuracy_value, loss_ph: loss_value, cost_ph: cost_value }
     for n in range(n_classes + 1):
