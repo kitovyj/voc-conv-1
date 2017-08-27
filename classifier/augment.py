@@ -247,10 +247,18 @@ def prepare(gray8, do_augment):
 
        # gray8 = skimage.util.random_noise(gray8, mode = 's&p')
 
+
+       gray8 = gray8.astype(numpy.float32)
+
+       gray8 /= 255.
+
        max_pad_coeff = 0.1
        max_pad = int(gray8.shape[1] * max_pad_coeff)
 
        padded = numpy.zeros((gray8.shape[0], gray8.shape[1] + 2*max_pad), dtype = gray8.dtype)
+
+       # converts to float
+       padded = skimage.util.random_noise(padded, mode = 'gaussian', var = 0.01)
 
        padded[:, max_pad:(max_pad + gray8.shape[1])] = gray8
 
@@ -260,10 +268,6 @@ def prepare(gray8, do_augment):
        right = gray8.shape[1] - int((random.random() * 2 * max_pad))
 
        gray8 = gray8[:, left:right]
-       
-       gray8 = gray8.astype(numpy.float32)
-
-       gray8 /= 255.
 
        # change volume
 
