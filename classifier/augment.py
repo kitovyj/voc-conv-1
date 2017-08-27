@@ -10,7 +10,6 @@ import random
 import scipy.misc
 from scipy.ndimage import zoom
 import skimage
-import cv2
 import math
 
 def rgb2gray(rgb):
@@ -252,6 +251,11 @@ def prepare(gray8, do_augment):
 
        # change volume
 
+       left = int(random.random() * 0.1 * gray8.shape[1])
+       right = gray8.shape[1] - int(random.random() * 0.1 * gray8.shape[1])
+
+       gray8 = gray8[:, left:right]
+       
        gray8 = gray8.astype(numpy.float32)
 
        gray8 /= 255.
@@ -283,7 +287,7 @@ def prepare(gray8, do_augment):
 
     resized[0:233, 0:max_width] = gray8[:, 0:max_width]
 
-
+    
 
 
     # resize rescales the image if it's not uint8!
@@ -312,6 +316,7 @@ def prepare(gray8, do_augment):
     #return gray8
 
     resized = resized.astype(numpy.float32)
+    resized = resized - resized.mean()
 
     resized = resized[:, None]
 
