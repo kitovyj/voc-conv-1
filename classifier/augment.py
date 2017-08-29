@@ -10,7 +10,6 @@ import random
 import scipy.misc
 from scipy.ndimage import zoom
 import skimage
-import cv2
 import math
 
 def rgb2gray(rgb):
@@ -246,15 +245,31 @@ def prepare(gray8, do_augment):
 
     if do_augment:
 
-       # add noise
-
        # gray8 = skimage.util.random_noise(gray8, mode = 's&p')
 
-       # change volume
 
        gray8 = gray8.astype(numpy.float32)
 
        gray8 /= 255.
+
+       max_pad_coeff = 0.1
+       max_pad = int(gray8.shape[1] * max_pad_coeff)
+
+       padded = numpy.zeros((gray8.shape[0], gray8.shape[1] + 2*max_pad), dtype = gray8.dtype)
+
+       # converts to float
+       padded = skimage.util.random_noise(padded, mode = 'gaussian', var = 0.01)
+
+       padded[:, max_pad:(max_pad + gray8.shape[1])] = gray8
+
+       gray8 = padded
+
+       left = int((random.random() * 2 * max_pad))
+       right = gray8.shape[1] - int((random.random() * 2 * max_pad))
+
+       gray8 = gray8[:, left:right]
+
+       # change volume
 
        rc = random_color_aug_coeff()
 
@@ -262,7 +277,9 @@ def prepare(gray8, do_augment):
 
        gray8[gray8 > 1.0] = 1.0
 
-         # converts to 0..1, float
+       # add noise
+
+       # converts to 0..1, float
 
        gray8 = skimage.util.random_noise(gray8, mode = 'gaussian', var = 0.01 * random.random())
 
@@ -283,7 +300,7 @@ def prepare(gray8, do_augment):
 
     resized[0:233, 0:max_width] = gray8[:, 0:max_width]
 
-
+    
 
 
     # resize rescales the image if it's not uint8!
@@ -312,6 +329,7 @@ def prepare(gray8, do_augment):
     #return gray8
 
     resized = resized.astype(numpy.float32)
+    resized = resized - resized.mean()
 
     resized = resized[:, None]
 

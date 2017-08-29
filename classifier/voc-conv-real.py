@@ -59,16 +59,16 @@ import tf_visualization
 
 parser = argparse.ArgumentParser()
 
-parser.add_argument('--kernel-sizes', dest = 'kernel_sizes', type = int, nargs = '+', default = [5, 5], help = 'convolutional layers kernel sizes')
-parser.add_argument('--features', dest = 'features', type = int, nargs = '+', default = [32, 64], help = 'convolutional layers features')
-parser.add_argument('--max-pooling', dest = 'max_pooling', type = int, nargs = '+', default = [2, 2], help = 'convolutional layers max pooling')
+parser.add_argument('--kernel-sizes', dest = 'kernel_sizes', type = int, nargs = '+', default = [], help = 'convolutional layers kernel sizes')
+parser.add_argument('--features', dest = 'features', type = int, nargs = '+', default = [], help = 'convolutional layers features')
+parser.add_argument('--max-pooling', dest = 'max_pooling', type = int, nargs = '+', default = [], help = 'convolutional layers max pooling')
 parser.add_argument('--fc-sizes', dest = 'fc_sizes', type = int, nargs = '+', default = 1024, help = 'fully connected layer size')
 parser.add_argument('--fc-num', dest = 'fc_num', type = int, default = 1, help = 'fully connected layers number')
 parser.add_argument('--learning-rate', dest = 'learning_rate', type = float, default = 0.0001, help = 'learning rate')
 parser.add_argument('--initial-weights-seed', dest = 'initial_weights_seed', type = int, default = None, help = 'initial weights seed')
 parser.add_argument('--dropout', dest = 'dropout', type = float, default = 0.0, help = 'drop out probability')
 parser.add_argument('--epochs', dest = 'epochs', type = int, default = 40, help = 'number of training epochs')
-parser.add_argument('--train-amount', dest = 'train_amount', type = int, default = 12454, help = 'number of training samples')
+parser.add_argument('--train-amount', dest = 'train_amount', type = int, default = 11020, help = 'number of training samples')
 parser.add_argument('--data-path', dest = 'data_path', default = './vocs_data3/', help = 'the path where input data are stored')
 parser.add_argument('--test-data-path', dest = 'test_data_path', default = None, help = 'the path where input test data are stored')
 parser.add_argument('--test-amount', dest = 'test_amount', type = int, default = 500, help = 'number of test samples')
@@ -556,8 +556,10 @@ pred1 = conv_net(x1_batch, weights, biases, dropout_ph)
 correct_pred = tf.equal(tf.round(tf.sigmoid(pred_batch_ph)), y_batch_ph)
 accuracy = tf.reduce_mean(tf.cast(correct_pred, tf.float32))
 
-grid = tf_visualization.put_kernels_on_color_grid (weights['wc'][0], grid_Y = 8, grid_X = 8)
-grid_orig = tf_visualization.put_kernels_on_color_grid (weights_copy['wc'][0], grid_Y = 8, grid_X = 8)
+if len(kernel_sizes) > 0:
+
+   grid = tf_visualization.put_kernels_on_color_grid (weights['wc'][0], grid_Y = 8, grid_X = 8)
+   grid_orig = tf_visualization.put_kernels_on_color_grid (weights_copy['wc'][0], grid_Y = 8, grid_X = 8)
 #grid = tf_visualization.put_averaged_kernels_on_color_grid (weights['wc2'], grid_Y = 8, grid_X = 8)
 #grid = tf_visualization.put_fully_connected_on_grid (weights['wd1'], grid_Y = 25, grid_X = 25)
 
@@ -602,7 +604,8 @@ if initial_weights_seed is None:
 else:
    const_summaries.append(tf.summary.scalar('initial weights seed', tf.constant(initial_weights_seed)))
 
-const_summaries.append(tf.summary.image('conv1orig', grid_orig, max_outputs = 1))
+if len(kernel_sizes) > 0:
+   const_summaries.append(tf.summary.image('conv1orig', grid_orig, max_outputs = 1))
 
 const_summary = tf.summary.merge(const_summaries)
 
@@ -614,7 +617,9 @@ const_summary = tf.summary.merge(const_summaries)
 train_summaries = []
 
 train_summaries.append(weights_change_summary())
-train_summaries.append(tf.summary.image('conv1/features', grid, max_outputs = 1))
+
+if len(kernel_sizes) > 0:
+   train_summaries.append(tf.summary.image('conv1/features', grid, max_outputs = 1))
 train_summaries.append(tf.summary.scalar('accuracy', accuracy_ph))
 train_summaries.append(tf.summary.scalar('train_accuracy', train_accuracy_ph))
 train_summaries.append(tf.summary.scalar('loss', loss_ph))

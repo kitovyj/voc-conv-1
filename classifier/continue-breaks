@@ -1,0 +1,1 @@
+python3 -u ./voc-conv-breaks.py --data-path ./data_breaks/  --train-amount 8802 --epochs 60 --fc-num 3 --fc-sizes 1024 512 256 --dropout 0.7 --learning-rate 0.00001 --regularization 0.0005 --summary-file ./pretrained-s20-8
