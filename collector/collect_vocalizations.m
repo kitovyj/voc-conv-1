@@ -1,5 +1,4 @@
 function collect_vocalizations()
-
  
     path = 'c:\DNN\hammerschmidt\';
     data_path = '.\data\';
@@ -21,6 +20,11 @@ function collect_vocalizations()
         source_file = strcat(path, file.name);
             
         vocs = VocCollector('DataSource', 'WAV', 'Filename', source_file, 'FRange', [10000,1500000]);
+        
+        % [W, SR]= audioread('c:\DNN\hammerschmidt\Rfem_Afem01.wav');
+        % RW = C_convertWAV2Controller('Data', W, 'SR', SR);
+        % MultiViewer('Data', RW, 'DetectVocs', 1)
+        
 
         for i=1:numel(vocs)
         
@@ -37,6 +41,8 @@ function collect_vocalizations()
             im = imresize(im, [100 100]);
 
             file_name = strcat(data_path, sprintf('data%09d', count)); 
+            file_name_raw = strcat('r', file_name);             
+            png_raw_file = strcat(file_name_raw, '.png');
             png_file = strcat(file_name, '.png');
             csv_file = strcat(file_name, '.csv');
             mat_file = strcat(file_name, '.mat');
@@ -45,8 +51,19 @@ function collect_vocalizations()
             save(mat_file, 'v');
     
             imwrite(im, png_file);
+            imwrite(sp, png_raw_file);
+                    
+            spec = v.Spec{1};
+            height = size(spec, 1);
+            coord = linspace(0, height - 1, height)';
+            coord = repmat(coord, 1, size(spec, 2));        
+            freq_sums = sum(spec, 1);
         
-            labels = [male];
+            weighted_coord = spec .* coord;
+            weighted_sums = sum(weighted_coord, 1);
+            avg_freq = mean(weighted_sums ./ freq_sums);
+            
+            labels = [male, v.Duration, avg_freq];
             csvwrite(csv_file, labels);
         
             count = count + 1;
