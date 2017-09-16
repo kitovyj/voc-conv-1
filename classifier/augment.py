@@ -264,8 +264,8 @@ def prepare(gray8, do_augment):
 
        gray8 = padded
 
-       left = int((random.random() * 2 * max_pad))
-       right = gray8.shape[1] - int((random.random() * 2 * max_pad))
+       left = int((random.random() * 1 * max_pad))
+       right = gray8.shape[1] - int((random.random() * 1 * max_pad))
 
        gray8 = gray8[:, left:right]
 
