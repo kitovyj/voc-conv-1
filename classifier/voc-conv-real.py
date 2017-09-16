@@ -1,51 +1,5 @@
 from __future__ import print_function
 
-'''
-
-Original code:
-
-https://github.com/aymericdamien/TensorFlow-Examples/blob/master/examples/3_NeuralNetworks/convolutional_network.py
-
-See also
-
-http://stackoverflow.com/questions/34340489/tensorflow-read-images-with-labels
-http://stackoverflow.com/questions/37091899/how-to-actually-read-csv-data-in-tensorflow
-https://gist.github.com/eerwitt/518b0c9564e500b4b50f
-http://stackoverflow.com/questions/37504470/tensorflow-crashes-when-using-sess-run
-http://learningtensorflow.com
-http://openmachin.es/blog/tensorflow-mnist
-https://freedomofkeima.com/blog/posts/flag-8-first-trial-to-image-processing-with-tensorflow
-
-something interesting about TF
-
-https://bamos.github.io/2016/08/09/deep-completion/
-
-http://christopher5106.github.io/deep/learning/2015/11/11/tensorflow-google-deeplearning-library.html
-https://github.com/TensorVision/TensorVision
-https://indico.io/blog/tensorflow-data-inputs-part1-placeholders-protobufs-queues/
-
-https://ischlag.github.io/2016/06/03/simple-neural-network-in-tensorflow/
-
-here is the best explanation of how tf works:
-https://ischlag.github.io/2016/06/19/tensorflow-input-pipeline-example/
-
-how to visualize weights:
-
-http://stackoverflow.com/questions/33783672/how-can-i-visualize-the-weightsvariables-in-cnn-in-tensorflow
-https://www.snip2code.com/Snippet/1104315/Tensorflow---visualize-convolutional-fea
-
-softmax_cross_entropy_with_logits and sparce_softmax_cross_entropy_with_logits diference:
-http://stackoverflow.com/questions/37312421/tensorflow-whats-the-difference-between-sparse-softmax-cross-entropy-with-logi
-                                                                                L1 and L2 regularizations explained:
-https://www.quora.com/What-is-the-difference-between-L1-and-L2-regularization
-
-independent and mutex classes:
-https://www.quora.com/How-does-one-use-neural-networks-for-the-task-of-multi-class-label-classification
-
-deep completion : https://bamos.github.io/2016/08/09/deep-completion/
-
-'''
-
 import sys
 import numpy
 import argparse
@@ -74,6 +28,7 @@ parser.add_argument('--test-data-path', dest = 'test_data_path', default = None,
 parser.add_argument('--test-amount', dest = 'test_amount', type = int, default = 500, help = 'number of test samples')
 parser.add_argument('--summary-file', dest = 'summary_file', default = None, help = 'the summary file where the trained weights and network parameters are stored')
 parser.add_argument('--regularization', dest = 'regularization_coeff', type = float, default = 100*5E-4, help = 'fully connected layers weights regularization')
+parser.add_argument('--batch-normalization', action='store_true', dest='batch_normalization', help='if \'batch normalization\' is enabled')
 
 args = parser.parse_args()
 
@@ -107,6 +62,7 @@ data_path = args.data_path
 test_data_path = args.test_data_path
 summary_file = args.summary_file
 regularization_coeff = args.regularization_coeff
+batch_normalization = args.batch_normalization
 
 #image_width = 128
 #image_height = 128
@@ -134,12 +90,19 @@ train_accuracy_ph = tf.placeholder(tf.float32)
 loss_ph = tf.placeholder(tf.float32)
 cost_ph = tf.placeholder(tf.float32)
 learning_rate_ph = tf.placeholder(tf.float32)
+phase_ph = tf.placeholder(tf.bool, 'training')
+
 
 # Create some wrappers for simplicity
-def conv2d(x, W, b, strides = 1):
+
+def conv2d(x, W, b, strides = 1, phase):
     # Conv2D wrapper, with bias and relu activation
     x = tf.nn.conv2d(x, W, strides = [1, strides, strides, 1], padding = 'SAME')
     x = tf.nn.bias_add(x, b)
+
+    if batch_normalization:
+        x = tf.contrib.layers.batch_norm(x, center = True, scale = True, is_training = phase)
+
     return tf.nn.relu(x)
 
 
@@ -150,7 +113,7 @@ def maxpool2d(x, k = 2):
 
 
 # Create model
-def conv_net(x, weights, biases, dropout, out_name = None):
+def conv_net(x, weights, biases, dropout, phase, out_name = None):
     # Reshape input picture
     x = tf.reshape(x, shape = [-1, image_width, image_height, 1])
 
@@ -162,9 +125,9 @@ def conv_net(x, weights, biases, dropout, out_name = None):
         mp = max_pooling[i]
 
         # Convolution Layer
-        conv = conv2d(conv, weights['wc'][i], biases['bc'][i])
-        # Max Pooling (down-sampling)
+        conv = conv2d(conv, weights['wc'][i], biases['bc'][i], phase)
 
+        # Max Pooling (down-sampling)
         if mp > 1:
            conv = maxpool2d(conv, k = mp)
 
@@ -174,6 +137,10 @@ def conv_net(x, weights, biases, dropout, out_name = None):
 
     for i in range(hidden_layers_n):
         fc = tf.add(tf.matmul(fc, weights['wd'][i]), biases['bd'][i])
+
+        if batch_normalization:
+           fc = tf.contrib.layers.batch_norm(fc, center = True, scale = True, is_training = phase)
+
         fc = tf.nn.relu(fc)
         # Apply Dropout
         fc = tf.nn.dropout(fc, 1.0 - dropout)
@@ -491,7 +458,7 @@ y.set_shape([n_classes])
 x_batch, y_batch = tf.train.batch([x, y], batch_size = batch_size)
 
 # Construct model
-pred = conv_net(x_batch_ph, weights, biases, dropout_ph)
+pred = conv_net(x_batch_ph, weights, biases, dropout_ph, phase_ph)
 
 # Define loss and optimizer
 loss = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits = pred, labels = y_batch_ph))
@@ -522,7 +489,10 @@ learning_rate = tf.train.exponential_decay(
     staircase = True)
 '''
 
-optimizer = tf.train.AdamOptimizer(learning_rate = learning_rate).minimize(cost)
+update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
+with tf.control_dependencies(update_ops):
+     optimizer = tf.train.AdamOptimizer(learning_rate = learning_rate).minimize(cost)
+
 #optimizer = tf.train.MomentumOptimizer(learning_rate, 0.1).minimize(cost, global_step=batch)
 
 #try smaller values
@@ -542,7 +512,7 @@ x1.set_shape([image_height * image_width])
 y1.set_shape([n_classes])
 
 x1_batch, y1_batch = tf.train.batch([x1, y1], batch_size = eval_batch_size)
-pred1 = conv_net(x1_batch, weights, biases, dropout_ph)
+pred1 = conv_net(x1_batch, weights, biases, dropout_ph, phase_ph)
 
 #pred1 = conv_net(x1_batch, weights, biases, dropout_ph)
 #y1_batch = tf.Print(y1_batch, [y1_batch], 'label', summarize = 30)
@@ -695,7 +665,7 @@ def calc_test_accuracy():
     for n in range(n_classes + 1):
         acc_sum = 0.0
         for i in range(batches_per_class):
-            p, y = sess.run([pred1, y1_batch], feed_dict = {dropout_ph: 0.0} )
+            p, y = sess.run([pred1, y1_batch], feed_dict = { dropout_ph: 0.0, phase_ph: False } )
             acc = sess.run(accuracy, feed_dict = { pred_batch_ph : p, y_batch_ph : y } )
             acc_sum = acc_sum + acc
         class_accuracies[n] = acc_sum / batches_per_class
@@ -751,7 +721,7 @@ for i in range(iterations):
     if i % summary_interval == 0:
         calc_test_accuracy()
 
-    _, loss_value, cost_value, p = sess.run([optimizer, loss, cost, pred], feed_dict = { x_batch_ph: x, y_batch_ph : y, dropout_ph: dropout } )
+    _, loss_value, cost_value, p = sess.run([optimizer, loss, cost, pred], feed_dict = { x_batch_ph: x, y_batch_ph : y, dropout_ph: dropout, phase_ph: True } )
 
     calc_train_accuracy(p, y)
 
