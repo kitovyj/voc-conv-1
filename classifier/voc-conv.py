@@ -207,9 +207,12 @@ if summary_file is None:
          biases['bc'].append(tf.Variable(tf.constant(0.0, shape=[fs], dtype=tf.float32)))
 
       # calculate variance as 2 / (inputs + outputs)
+      # Glorot & Bengio => 2 / inputs
+
       total_inputs = ks * ks * inputs_n;
       total_outputs = ks * ks * fs;
-      var = 2. / (total_inputs + total_outputs)
+      # var = 2. / (total_inputs + total_outputs)
+      var = 2. / (total_inputs)
 
       weights['wc'].append(tf.Variable(tf.truncated_normal([ks, ks, inputs_n, fs], stddev = math.sqrt(var), seed = initial_weights_seed)))
 
@@ -221,12 +224,14 @@ if summary_file is None:
    for i in range(hidden_layers_n):
 
       # calculate variance as 2 / (inputs + outputs)
+      # Glorot & Bengio => 2 / inputs
 
       if i == 0:
 
          total_inputs = int((image_width / pk) * (image_height / pk) * inputs_n)
          total_outputs = fc_sizes[i];
-         var = 2. / (total_inputs + total_outputs)
+         #var = 2. / (total_inputs + total_outputs)
+         var = 2. / (total_inputs)
 
          weights['wd'].append(tf.Variable(tf.truncated_normal([total_inputs, fc_sizes[i]], stddev = math.sqrt(var), seed = initial_weights_seed)))
 
@@ -234,7 +239,8 @@ if summary_file is None:
 
          total_inputs = fc_sizes[i - 1]
          total_outputs = fc_sizes[i];
-         var = 2. / (total_inputs + total_outputs)
+         var = 2. / (total_inputs)
+         #var = 2. / (total_inputs + total_outputs)
 
          weights['wd'].append(tf.Variable(tf.truncated_normal([fc_sizes[i - 1], fc_sizes[i]], stddev = math.sqrt(var), seed = initial_weights_seed)))
 
@@ -242,7 +248,8 @@ if summary_file is None:
 
    total_inputs = fc_sizes[-1]
    total_outputs = n_classes;
-   var = 2. / (total_inputs + total_outputs)
+   var = 2. / (total_inputs)
+   #var = 2. / (total_inputs + total_outputs)
 
    weights['out'] = tf.Variable(tf.truncated_normal([fc_sizes[-1], n_classes], stddev = math.sqrt(var), seed = initial_weights_seed))
 
