@@ -204,25 +204,49 @@ if summary_file is None:
       if i == 0:
          biases['bc'].append(tf.Variable(tf.zeros([fs])))
       else:
-         biases['bc'].append(tf.Variable(tf.constant(0.1, shape=[fs], dtype=tf.float32)))
+         biases['bc'].append(tf.Variable(tf.constant(0.0, shape=[fs], dtype=tf.float32)))
 
-      weights['wc'].append(tf.Variable(tf.truncated_normal([ks, ks, inputs_n, fs], stddev=0.1, seed = initial_weights_seed)))
+      # calculate variance as 2 / (inputs + outputs)
+      total_inputs = ks * ks * inputs_n;
+      total_outputs = ks * ks * fs;
+      var = 2. / (total_inputs + total_outputs)
+
+      weights['wc'].append(tf.Variable(tf.truncated_normal([ks, ks, inputs_n, fs], stddev = math.sqrt(var), seed = initial_weights_seed)))
 
       inputs_n = fs
+
 
    # fully connected, 7*7*64 inputs, 1024 outputs
 
    for i in range(hidden_layers_n):
+
+      # calculate variance as 2 / (inputs + outputs)
+
       if i == 0:
-         weights['wd'].append(tf.Variable(tf.truncated_normal([int((image_width / pk) * (image_height / pk) * inputs_n), fc_sizes[i]], stddev=0.1, seed = initial_weights_seed)))
+
+         total_inputs = int((image_width / pk) * (image_height / pk) * inputs_n)
+         total_outputs = fc_sizes[i];
+         var = 2. / (total_inputs + total_outputs)
+
+         weights['wd'].append(tf.Variable(tf.truncated_normal([total_inputs, fc_sizes[i]], stddev = math.sqrt(var), seed = initial_weights_seed)))
+
       else:
-         weights['wd'].append(tf.Variable(tf.truncated_normal([fc_sizes[i - 1], fc_sizes[i]], stddev=0.1, seed = initial_weights_seed)))
 
-      biases['bd'].append(tf.Variable(tf.constant(0.1, shape=[fc_sizes[i]])))
+         total_inputs = fc_sizes[i - 1]
+         total_outputs = fc_sizes[i];
+         var = 2. / (total_inputs + total_outputs)
 
-   weights['out'] = tf.Variable(tf.truncated_normal([fc_sizes[-1], n_classes], stddev=0.1, seed = initial_weights_seed))
+         weights['wd'].append(tf.Variable(tf.truncated_normal([fc_sizes[i - 1], fc_sizes[i]], stddev = math.sqrt(var), seed = initial_weights_seed)))
 
-   biases['out'] = tf.Variable(tf.constant(0.1, shape=[n_classes]))
+      biases['bd'].append(tf.Variable(tf.constant(0.0, shape=[fc_sizes[i]])))
+
+   total_inputs = fc_sizes[-1]
+   total_outputs = n_classes;
+   var = 2. / (total_inputs + total_outputs)
+
+   weights['out'] = tf.Variable(tf.truncated_normal([fc_sizes[-1], n_classes], stddev = math.sqrt(var), seed = initial_weights_seed))
+
+   biases['out'] = tf.Variable(tf.constant(0.0, shape=[n_classes]))
 
 
 if summary_file is not None:
@@ -557,6 +581,7 @@ for i in range(len(kernel_sizes)):
     const_summaries.append(tf.summary.scalar(name, tf.constant(max_pooling[i])))
 
 const_summaries.append(tf.summary.scalar('dropout probablility', tf.constant(dropout)))
+const_summaries.append(tf.summary.scalar('batch normalization', tf.constant(batch_normalization)))
 const_summaries.append(tf.summary.scalar('epochs', tf.constant(epochs)))
 const_summaries.append(tf.summary.scalar('train amount', tf.constant(train_amount)))
 const_summaries.append(tf.summary.scalar('test amount', tf.constant(test_amount)))
@@ -614,6 +639,7 @@ for i in range(len(max_pooling)):
     print('conv. layer ' + str(i + 1) + ' max pooling: ' + str(max_pooling[i]))
 
 print("dropout probability: " + str(dropout))
+print("batch normalization: " + str(batch_normalization))
 print("learning rate: " + str(learning_rate))
 print("regularization coefficient: " + str(regularization_coeff))
 print("initial weights seed: " + str(initial_weights_seed))
@@ -1087,14 +1113,12 @@ batch = tf.Variable(0, dtype = tf.float32)
 # Decay once per epoch, using an exponential schedule starting at 0.01.
 train_size = 15000
 
-'''
-learning_rate = tf.train.exponential_decay(
-    0.001,                # Base learning rate.
-    batch * batch_size,  # Current index into the dataset.
-    train_size,          # Decay step.
-    0.95,                # Decay rate.
-    staircase = True)
-'''
+#learning_rate = tf.train.exponential_decay(
+#    0.001,                # Base learning rate.
+#    batch * batch_size,  # Current index into the dataset.
+#    train_size,          # Decay step.
+#    0.95,                # Decay rate.
+#    staircase = True)
 
 optimizer = tf.train.AdamOptimizer(learning_rate = learning_rate).minimize(cost)
 #optimizer = tf.train.MomentumOptimizer(learning_rate, 0.1).minimize(cost, global_step=batch)
@@ -1192,12 +1216,9 @@ threads = tf.train.start_queue_runners(sess = sess, coord = coord)
 
 iterations = max(1, int(train_amount / batch_size)) * epochs
 
-'''
-array = sess.run(weights['wd1'])
-fname = 'wd1first.csv'
-numpy.savetxt(fname, array.flatten(), "%10.10f")
-'''
-
+#array = sess.run(weights['wd1'])
+#fname = 'wd1first.csv'
+#numpy.savetxt(fname, array.flatten(), "%10.10f")
 
 const_summaries = []
 
@@ -1288,13 +1309,9 @@ for i in range(iterations):
         display_info(i, iterations)
         write_summaries();
 
-
-
-'''
-array = sess.run(weights['wd1'])
-fname = 'wd1last.csv'
-numpy.savetxt(fname, array.flatten(), "%10.10f")
-'''
+#array = sess.run(weights['wd1'])
+#fname = 'wd1last.csv'
+#numpy.savetxt(fname, array.flatten(), "%10.10f")
 
 calc_test_accuracy()
 
