@@ -10,6 +10,7 @@ import scipy.misc
 import random
 import tensorflow as tf
 import tf_visualization
+import math
 
 parser = argparse.ArgumentParser()
 
@@ -90,7 +91,7 @@ train_accuracy_ph = tf.placeholder(tf.float32)
 loss_ph = tf.placeholder(tf.float32)
 cost_ph = tf.placeholder(tf.float32)
 learning_rate_ph = tf.placeholder(tf.float32)
-phase_ph = tf.placeholder(tf.bool, 'training')
+phase_ph = tf.placeholder(tf.bool)
 
 
 # Create some wrappers for simplicity
