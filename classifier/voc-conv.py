@@ -393,7 +393,7 @@ def just_prepare(gray8):
 def prepare_and_augment(gray8):
     return augment.prepare(gray8, do_augment = True)
 
-def input_data(amount, shuffle, do_augment):
+def input_data(start_index, amount, shuffle, do_augment):
 
     range_queue = tf.train.range_input_producer(amount, shuffle = shuffle)
 
