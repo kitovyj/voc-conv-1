@@ -622,12 +622,6 @@ train_summaries.append(tf.summary.scalar('train_accuracy', train_accuracy_ph))
 train_summaries.append(tf.summary.scalar('loss', loss_ph))
 train_summaries.append(tf.summary.scalar('cost', cost_ph))
 
-class_accuracies_ph = [None]*(n_classes + 1)
-
-for n in range(n_classes + 1):
-    class_accuracies_ph[n] = tf.placeholder(tf.float32)
-    train_summaries.append(tf.summary.scalar('accuracy_' + str(n + 1), class_accuracies_ph[n]))
-
 train_summary = tf.summary.merge(train_summaries)
 
 start_time = time.time()
@@ -688,18 +682,15 @@ def calc_test_accuracy():
     global class_accuracies
     #batches = int(round(test_amount / eval_batch_size + 0.5))
 
-    batches_per_class = int(250 / eval_batch_size)
+    batches = int(test_amount / eval_batch_size)
 
-    for n in range(n_classes + 1):
-        acc_sum = 0.0
-        for i in range(batches_per_class):
-            p, y = sess.run([pred1, y1_batch], feed_dict = { dropout_ph: 0.0, phase_ph: False } )
-            acc = sess.run(accuracy, feed_dict = { pred_batch_ph : p, y_batch_ph : y } )
-            acc_sum = acc_sum + acc
-        class_accuracies[n] = acc_sum / batches_per_class
+    acc_sum = 0.0
+    for i in range(batches):
+       p, y = sess.run([pred1, y1_batch], feed_dict = { dropout_ph: 0.0, phase_ph: False } )
+       acc = sess.run(accuracy, feed_dict = { pred_batch_ph : p, y_batch_ph : y } )
+       acc_sum = acc_sum + acc
 
-
-    accuracy_value = numpy.mean(class_accuracies)
+    accuracy_value = acc_sum / batches
 
 
 def calc_train_accuracy(pred, y):
@@ -736,8 +727,6 @@ def write_summaries():
     global cost_value
 
     fd = { accuracy_ph: accuracy_value, train_accuracy_ph: train_accuracy_value, loss_ph: loss_value, cost_ph: cost_value }
-    for n in range(n_classes + 1):
-        fd[class_accuracies_ph[n]] = class_accuracies[n]
 
     s = sess.run(train_summary, feed_dict = fd)
     train_writer.add_summary(s)
