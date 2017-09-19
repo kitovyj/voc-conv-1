@@ -589,7 +589,7 @@ for i in range(len(kernel_sizes)):
     const_summaries.append(tf.summary.scalar(name, tf.constant(max_pooling[i])))
 
 const_summaries.append(tf.summary.scalar('dropout probablility', tf.constant(dropout)))
-const_summaries.append(tf.summary.scalar('batch normalization', tf.constant(batch_normalization)))
+const_summaries.append(tf.summary.scalar('batch normalization', tf.constant(int(batch_normalization))))
 const_summaries.append(tf.summary.scalar('epochs', tf.constant(epochs)))
 const_summaries.append(tf.summary.scalar('train amount', tf.constant(train_amount)))
 const_summaries.append(tf.summary.scalar('test amount', tf.constant(test_amount)))
