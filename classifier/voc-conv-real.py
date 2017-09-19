@@ -90,12 +90,12 @@ train_accuracy_ph = tf.placeholder(tf.float32)
 loss_ph = tf.placeholder(tf.float32)
 cost_ph = tf.placeholder(tf.float32)
 learning_rate_ph = tf.placeholder(tf.float32)
-phase_ph = tf.placeholder(tf.bool, 'training')
+phase_ph = tf.placeholder(tf.bool, name = 'training')
 
 
 # Create some wrappers for simplicity
 
-def conv2d(x, W, b, strides = 1, phase):
+def conv2d(x, W, b, strides, phase):
     # Conv2D wrapper, with bias and relu activation
     x = tf.nn.conv2d(x, W, strides = [1, strides, strides, 1], padding = 'SAME')
     x = tf.nn.bias_add(x, b)
@@ -125,7 +125,7 @@ def conv_net(x, weights, biases, dropout, phase, out_name = None):
         mp = max_pooling[i]
 
         # Convolution Layer
-        conv = conv2d(conv, weights['wc'][i], biases['bc'][i], phase)
+        conv = conv2d(conv, weights['wc'][i], biases['bc'][i], 1, phase)
 
         # Max Pooling (down-sampling)
         if mp > 1:
