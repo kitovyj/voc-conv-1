@@ -102,7 +102,7 @@ def conv2d(x, W, b, strides, phase):
     x = tf.nn.bias_add(x, b)
 
     if batch_normalization:
-        x = tf.contrib.layers.batch_norm(x, center = True, scale = True, is_training = phase)
+        x = tf.layers.batch_normalization(x, training = phase)
 
     return tf.nn.relu(x)
 
@@ -140,7 +140,7 @@ def conv_net(x, weights, biases, dropout, phase, out_name = None):
         fc = tf.add(tf.matmul(fc, weights['wd'][i]), biases['bd'][i])
 
         if batch_normalization:
-           fc = tf.contrib.layers.batch_norm(fc, center = True, scale = True, is_training = phase)
+           fc = tf.layers.batch_normalization(fc, training = phase)
 
         fc = tf.nn.relu(fc)
         # Apply Dropout
@@ -214,8 +214,10 @@ if summary_file is None:
       total_outputs = ks * ks * fs;
       # var = 2. / (total_inputs + total_outputs)
       var = 2. / (total_inputs)
+      stddev = math.sqrt(var)
+      print('stddev = ' + stddev)
 
-      weights['wc'].append(tf.Variable(tf.truncated_normal([ks, ks, inputs_n, fs], stddev = math.sqrt(var), seed = initial_weights_seed)))
+      weights['wc'].append(tf.Variable(tf.truncated_normal([ks, ks, inputs_n, fs], stddev = stddev, seed = initial_weights_seed)))
 
       inputs_n = fs
 
@@ -233,8 +235,10 @@ if summary_file is None:
          total_outputs = fc_sizes[i];
          #var = 2. / (total_inputs + total_outputs)
          var = 2. / (total_inputs)
+         stddev = math.sqrt(var)
+         print('stddev = ' + str(stddev))
 
-         weights['wd'].append(tf.Variable(tf.truncated_normal([total_inputs, fc_sizes[i]], stddev = math.sqrt(var), seed = initial_weights_seed)))
+         weights['wd'].append(tf.Variable(tf.truncated_normal([total_inputs, fc_sizes[i]], stddev = stddev, seed = initial_weights_seed)))
 
       else:
 
@@ -242,8 +246,10 @@ if summary_file is None:
          total_outputs = fc_sizes[i];
          var = 2. / (total_inputs)
          #var = 2. / (total_inputs + total_outputs)
+         stddev = math.sqrt(var)
+         print('stddev = ' + str(stddev))
 
-         weights['wd'].append(tf.Variable(tf.truncated_normal([fc_sizes[i - 1], fc_sizes[i]], stddev = math.sqrt(var), seed = initial_weights_seed)))
+         weights['wd'].append(tf.Variable(tf.truncated_normal([fc_sizes[i - 1], fc_sizes[i]], stddev = stddev, seed = initial_weights_seed)))
 
       biases['bd'].append(tf.Variable(tf.constant(0.1, shape=[fc_sizes[i]])))
 
