@@ -215,7 +215,7 @@ if summary_file is None:
       # var = 2. / (total_inputs + total_outputs)
       var = 2. / (total_inputs)
       stddev = math.sqrt(var)
-      print('stddev = ' + stddev)
+      print('stddev = ' + str(stddev))
 
       weights['wc'].append(tf.Variable(tf.truncated_normal([ks, ks, inputs_n, fs], stddev = stddev, seed = initial_weights_seed)))
 
