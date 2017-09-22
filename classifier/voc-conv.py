@@ -205,7 +205,7 @@ if summary_file is None:
       if i == 0:
          biases['bc'].append(tf.Variable(tf.zeros([fs])))
       else:
-         biases['bc'].append(tf.Variable(tf.constant(0.0, shape=[fs], dtype=tf.float32)))
+         biases['bc'].append(tf.Variable(tf.constant(0.1, shape=[fs], dtype=tf.float32)))
 
       # calculate variance as 2 / (inputs + outputs)
       # Glorot & Bengio => 2 / inputs
@@ -245,7 +245,7 @@ if summary_file is None:
 
          weights['wd'].append(tf.Variable(tf.truncated_normal([fc_sizes[i - 1], fc_sizes[i]], stddev = math.sqrt(var), seed = initial_weights_seed)))
 
-      biases['bd'].append(tf.Variable(tf.constant(0.0, shape=[fc_sizes[i]])))
+      biases['bd'].append(tf.Variable(tf.constant(0.1, shape=[fc_sizes[i]])))
 
    total_inputs = fc_sizes[-1]
    total_outputs = n_classes;
@@ -254,7 +254,7 @@ if summary_file is None:
 
    weights['out'] = tf.Variable(tf.truncated_normal([fc_sizes[-1], n_classes], stddev = math.sqrt(var), seed = initial_weights_seed))
 
-   biases['out'] = tf.Variable(tf.constant(0.0, shape=[n_classes]))
+   biases['out'] = tf.Variable(tf.constant(0.1, shape=[n_classes]))
 
 
 if summary_file is not None:
@@ -448,11 +448,12 @@ def input_data(start_index, amount, shuffle, do_augment):
     #data_shape = tf.shape(data);
     #data = tf.Print(data, [data_shape], message = "Data shape: ")
 
+    data1 = data
 
-    if do_augment:
-       data1 = tf.py_func(prepare_and_augment, [data], [tf.float32])[0]
-    else:
-       data1 = tf.py_func(just_prepare, [data], [tf.float32])[0]
+    #if do_augment:
+    #   data1 = tf.py_func(prepare_and_augment, [data], [tf.float32])[0]
+    #else:
+    #   data1 = tf.py_func(just_prepare, [data], [tf.float32])[0]
 
 
 #    data1.set_shape((100, 100, 1))

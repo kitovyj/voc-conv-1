@@ -1,1 +1,1 @@
-python3 -u ./voc-conv.py --data-path ./data/ --train-amount 170000 --epochs 10 --initial-weights-seed 9 --fc-num 2 --fc-sizes 40 40 --kernel-sizes 5 5 3 3 --features 64 128 256 256 --dropout 0.0 --batch-normalization --regularization 0.0 --max-pooling 2 2 1 1 --learning-rate 0.001
+python3 -u ./voc-conv.py --data-path ./data/ --train-amount 170000 --epochs 3 --initial-weights-seed 9 --fc-num 2 --fc-sizes 40 40 --kernel-sizes 5 5 3 3 --features 64 64 128 128 --dropout 0.5 --regularization 0.000001 --max-pooling 2 2 1 1 --learning-rate 0.0001
