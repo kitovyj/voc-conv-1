@@ -561,8 +561,8 @@ accuracy = tf.reduce_mean(tf.cast(correct_pred, tf.float32))
 
 if len(kernel_sizes) > 0:
 
-   grid = tf_visualization.put_kernels_on_color_grid (weights['wc'][0], grid_Y = 8, grid_X = 8)
-   grid_orig = tf_visualization.put_kernels_on_color_grid (weights_copy['wc'][0], grid_Y = 8, grid_X = 8)
+   grid = tf_visualization.put_kernels_on_color_grid (weights['wc'][0], grid_Y = 8, grid_X = 16)
+   grid_orig = tf_visualization.put_kernels_on_color_grid (weights_copy['wc'][0], grid_Y = 8, grid_X = 16)
 #grid = tf_visualization.put_averaged_kernels_on_color_grid (weights['wc2'], grid_Y = 8, grid_X = 8)
 #grid = tf_visualization.put_fully_connected_on_grid (weights['wd1'], grid_Y = 25, grid_X = 25)
 
