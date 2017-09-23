@@ -251,7 +251,7 @@ if summary_file is None:
 
          weights['wd'].append(tf.Variable(tf.truncated_normal([fc_sizes[i - 1], fc_sizes[i]], stddev = stddev, seed = initial_weights_seed)))
 
-      biases['bd'].append(tf.Variable(tf.constant(0.1, shape=[fc_sizes[i]])))
+      biases['bd'].append(tf.Variable(tf.constant(0.1, shape = [fc_sizes[i]])))
 
    total_inputs = fc_sizes[-1]
    total_outputs = n_classes;
@@ -260,7 +260,7 @@ if summary_file is None:
 
    weights['out'] = tf.Variable(tf.truncated_normal([fc_sizes[-1], n_classes], stddev = math.sqrt(var), seed = initial_weights_seed))
 
-   biases['out'] = tf.Variable(tf.constant(0.1, shape=[n_classes]))
+   biases['out'] = tf.Variable(tf.constant(0.1, shape = [n_classes]))
 
 
 if summary_file is not None:
