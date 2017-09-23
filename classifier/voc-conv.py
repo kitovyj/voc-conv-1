@@ -686,7 +686,6 @@ train_accuracy_value = -1
 
 def calc_test_accuracy():
     global accuracy_value
-    global class_accuracies
     #batches = int(round(test_amount / eval_batch_size + 0.5))
 
     batches = int(test_amount / eval_batch_size)
@@ -695,6 +694,7 @@ def calc_test_accuracy():
     for i in range(batches):
        p, y = sess.run([pred1, y1_batch], feed_dict = { dropout_ph: 0.0, is_training_ph: False } )
        acc = sess.run(accuracy, feed_dict = { pred_batch_ph : p, y_batch_ph : y } )
+       print(acc)
        acc_sum = acc_sum + acc
 
     accuracy_value = acc_sum / batches
