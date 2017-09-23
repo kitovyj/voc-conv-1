@@ -90,12 +90,12 @@ train_accuracy_ph = tf.placeholder(tf.float32)
 loss_ph = tf.placeholder(tf.float32)
 cost_ph = tf.placeholder(tf.float32)
 learning_rate_ph = tf.placeholder(tf.float32)
-phase_ph = tf.placeholder(tf.bool, name = 'training')
+phase_ph = tf.placeholder(tf.bool, 'training')
 
 
 # Create some wrappers for simplicity
 
-def conv2d(x, W, b, strides, phase):
+def conv2d(x, W, b, strides = 1, phase):
     # Conv2D wrapper, with bias and relu activation
     x = tf.nn.conv2d(x, W, strides = [1, strides, strides, 1], padding = 'SAME')
     x = tf.nn.bias_add(x, b)
@@ -125,7 +125,7 @@ def conv_net(x, weights, biases, dropout, phase, out_name = None):
         mp = max_pooling[i]
 
         # Convolution Layer
-        conv = conv2d(conv, weights['wc'][i], biases['bc'][i], 1, phase)
+        conv = conv2d(conv, weights['wc'][i], biases['bc'][i], phase)
 
         # Max Pooling (down-sampling)
         if mp > 1:
@@ -173,12 +173,13 @@ weights_copy = {
 }
 
 def tensor_summary_value_to_variable(value):
-    fb = numpy.frombuffer(v.tensor.tensor_content, dtype = numpy.float32)
 
-    v.tensor.tensor_content = b''
+    fb = numpy.frombuffer(value.tensor.tensor_content, dtype = numpy.float32)
+
+    value.tensor.tensor_content = b''
 
     shape = []
-    for d in v.tensor.tensor_shape.dim:
+    for d in value.tensor.tensor_shape.dim:
         shape.append(d.size)
     #fb.reshape(reversed(shape))
     fb = fb.reshape(shape)
@@ -206,13 +207,14 @@ if summary_file is None:
       else:
          biases['bc'].append(tf.Variable(tf.constant(0.1, shape=[fs], dtype=tf.float32)))
 
-      weights['wc'].append(tf.Variable(tf.truncated_normal([ks, ks, inputs_n, fs], stddev=0.1, seed = initial_weights_seed)))
+      weights['wc'].append(tf.Variable(tf.truncated_normal([ks, ks, inputs_n, fs], stddev = 0.1, seed = initial_weights_seed)))
 
       inputs_n = fs
 
    # fully connected, 7*7*64 inputs, 1024 outputs
 
    for i in range(hidden_layers_n):
+
       if i == 0:
          weights['wd'].append(tf.Variable(tf.truncated_normal([int((image_width / pk) * (image_height / pk) * inputs_n), fc_sizes[i]], stddev=0.1, seed = initial_weights_seed)))
       else:
@@ -236,8 +238,8 @@ if summary_file is not None:
        for v in e.summary.value:
 
            #gc.collect()
-           print(v.tag)
-           print(v.node_name)
+           print("tag is " + v.tag)
+           print("node name is" + v.node_name)
 
            #v.node_name = v.tag
            #print(v.node_name)
@@ -289,6 +291,7 @@ if summary_file is not None:
                 elif re.match('c[0-9]+-weights', v.node_name) :
                    split = v.node_name.split('-')
                    num = int(split[0][1:])
+                   print("loading convolutional layer " + str(num) + " weights")
                    w = tensor_summary_value_to_variable(v)
                    weights['wc'][num - 1] = w
                 elif re.match('c[0-9]+-biases', v.node_name) :
@@ -299,6 +302,7 @@ if summary_file is not None:
                 elif re.match('f[0-9]+-weights', v.node_name) :
                    split = v.node_name.split('-')
                    num = int(split[0][1:])
+                   print("loading fully connected layer " + str(num) + " weights")
                    w = tensor_summary_value_to_variable(v)
                    weights['wd'][num - 1] = w
                 elif re.match('f[0-9]+-biases', v.node_name) :
