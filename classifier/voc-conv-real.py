@@ -90,18 +90,17 @@ train_accuracy_ph = tf.placeholder(tf.float32)
 loss_ph = tf.placeholder(tf.float32)
 cost_ph = tf.placeholder(tf.float32)
 learning_rate_ph = tf.placeholder(tf.float32)
-phase_ph = tf.placeholder(tf.bool, name = 'training')
-
+is_training_ph = tf.placeholder(tf.bool)
 
 # Create some wrappers for simplicity
 
-def conv2d(x, W, b, strides, phase):
+def conv2d(x, W, b, strides, is_training):
     # Conv2D wrapper, with bias and relu activation
     x = tf.nn.conv2d(x, W, strides = [1, strides, strides, 1], padding = 'SAME')
     x = tf.nn.bias_add(x, b)
 
     if batch_normalization:
-        x = tf.contrib.layers.batch_norm(x, center = True, scale = True, is_training = phase)
+        x = tf.layers.batch_normalization(x, training = is_training)
 
     return tf.nn.relu(x)
 
@@ -113,7 +112,7 @@ def maxpool2d(x, k = 2):
 
 
 # Create model
-def conv_net(x, weights, biases, dropout, phase, out_name = None):
+def conv_net(x, weights, biases, dropout, is_training, out_name = None):
     # Reshape input picture
     x = tf.reshape(x, shape = [-1, image_width, image_height, 1])
 
@@ -125,7 +124,7 @@ def conv_net(x, weights, biases, dropout, phase, out_name = None):
         mp = max_pooling[i]
 
         # Convolution Layer
-        conv = conv2d(conv, weights['wc'][i], biases['bc'][i], 1, phase)
+        conv = conv2d(conv, weights['wc'][i], biases['bc'][i], 1, is_training)
 
         # Max Pooling (down-sampling)
         if mp > 1:
@@ -139,7 +138,7 @@ def conv_net(x, weights, biases, dropout, phase, out_name = None):
         fc = tf.add(tf.matmul(fc, weights['wd'][i]), biases['bd'][i])
 
         if batch_normalization:
-           fc = tf.contrib.layers.batch_norm(fc, center = True, scale = True, is_training = phase)
+           fc = tf.layers.batch_normalization(fc, training = is_training)
 
         fc = tf.nn.relu(fc)
         # Apply Dropout
@@ -206,19 +205,50 @@ if summary_file is None:
       else:
          biases['bc'].append(tf.Variable(tf.constant(0.1, shape=[fs], dtype=tf.float32)))
 
-      weights['wc'].append(tf.Variable(tf.truncated_normal([ks, ks, inputs_n, fs], stddev=0.1, seed = initial_weights_seed)))
+      total_inputs = ks * ks * inputs_n;
+      total_outputs = fs;
+      # var = 2. / (total_inputs + total_outputs)
+      var = 2. / (total_inputs)
+      stddev = math.sqrt(var)
+      print('stddev = ' + str(stddev))
+         
+      weights['wc'].append(tf.Variable(tf.truncated_normal([ks, ks, inputs_n, fs], stddev = stddev, seed = initial_weights_seed)))
 
       inputs_n = fs
 
    # fully connected, 7*7*64 inputs, 1024 outputs
 
    for i in range(hidden_layers_n):
+   
       if i == 0:
-         weights['wd'].append(tf.Variable(tf.truncated_normal([int((image_width / pk) * (image_height / pk) * inputs_n), fc_sizes[i]], stddev=0.1, seed = initial_weights_seed)))
+      
+         total_inputs = int((image_width / pk) * (image_height / pk) * inputs_n)
+         total_outputs = fc_sizes[i];
+         #var = 2. / (total_inputs + total_outputs)
+         var = 2. / (total_inputs)
+         stddev = math.sqrt(var)
+         print('stddev = ' + str(stddev))
+      
+         weights['wd'].append(tf.Variable(tf.truncated_normal([total_inputs, fc_sizes[i]], stddev = stddev, seed = initial_weights_seed)))
+         
       else:
-         weights['wd'].append(tf.Variable(tf.truncated_normal([fc_sizes[i - 1], fc_sizes[i]], stddev=0.1, seed = initial_weights_seed)))
+      
+         total_inputs = fc_sizes[i - 1]
+         total_outputs = fc_sizes[i];
+         var = 2. / (total_inputs)
+         #var = 2. / (total_inputs + total_outputs)
+         stddev = math.sqrt(var)
+         print('stddev = ' + str(stddev))
+      
+         weights['wd'].append(tf.Variable(tf.truncated_normal([fc_sizes[i - 1], fc_sizes[i]], stddev = stddev, seed = initial_weights_seed)))
+
 
       biases['bd'].append(tf.Variable(tf.constant(0.1, shape=[fc_sizes[i]])))
+      
+   total_inputs = fc_sizes[-1]
+   total_outputs = n_classes;
+   var = 2. / (total_inputs)
+   #var = 2. / (total_inputs + total_outputs)      
 
    weights['out'] = tf.Variable(tf.truncated_normal([fc_sizes[-1], n_classes], stddev=0.1, seed = initial_weights_seed))
 
@@ -458,7 +488,7 @@ y.set_shape([n_classes])
 x_batch, y_batch = tf.train.batch([x, y], batch_size = batch_size)
 
 # Construct model
-pred = conv_net(x_batch_ph, weights, biases, dropout_ph, phase_ph)
+pred = conv_net(x_batch_ph, weights, biases, dropout_ph, is_training_ph)
 
 # Define loss and optimizer
 loss = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits = pred, labels = y_batch_ph))
@@ -512,7 +542,7 @@ x1.set_shape([image_height * image_width])
 y1.set_shape([n_classes])
 
 x1_batch, y1_batch = tf.train.batch([x1, y1], batch_size = eval_batch_size)
-pred1 = conv_net(x1_batch, weights, biases, dropout_ph, phase_ph)
+pred1 = conv_net(x1_batch, weights, biases, dropout_ph, is_training_ph)
 
 #pred1 = conv_net(x1_batch, weights, biases, dropout_ph)
 #y1_batch = tf.Print(y1_batch, [y1_batch], 'label', summarize = 30)
@@ -665,7 +695,7 @@ def calc_test_accuracy():
     for n in range(n_classes + 1):
         acc_sum = 0.0
         for i in range(batches_per_class):
-            p, y = sess.run([pred1, y1_batch], feed_dict = { dropout_ph: 0.0, phase_ph: False } )
+            p, y = sess.run([pred1, y1_batch], feed_dict = { dropout_ph: 0.0, is_training_ph: False } )
             acc = sess.run(accuracy, feed_dict = { pred_batch_ph : p, y_batch_ph : y } )
             acc_sum = acc_sum + acc
         class_accuracies[n] = acc_sum / batches_per_class
@@ -721,7 +751,7 @@ for i in range(iterations):
     if i % summary_interval == 0:
         calc_test_accuracy()
 
-    _, loss_value, cost_value, p = sess.run([optimizer, loss, cost, pred], feed_dict = { x_batch_ph: x, y_batch_ph : y, dropout_ph: dropout, phase_ph: True } )
+    _, loss_value, cost_value, p = sess.run([optimizer, loss, cost, pred], feed_dict = { x_batch_ph: x, y_batch_ph : y, dropout_ph: dropout, is_training_ph: True } )
 
     calc_train_accuracy(p, y)
 

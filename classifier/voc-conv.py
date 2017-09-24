@@ -327,6 +327,7 @@ if summary_file is not None:
                 elif re.match('c[0-9]+-weights', v.node_name) :
                    split = v.node_name.split('-')
                    num = int(split[0][1:])
+                   print("loading convolutional layer " + str(num - 1) + " weights")
                    w = tensor_summary_value_to_variable(v)
                    weights['wc'][num - 1] = w
                 elif re.match('c[0-9]+-biases', v.node_name) :
@@ -337,6 +338,7 @@ if summary_file is not None:
                 elif re.match('f[0-9]+-weights', v.node_name) :
                    split = v.node_name.split('-')
                    num = int(split[0][1:])
+                   print("loading fully connected layer " + str(num - 1) + " weights")
                    w = tensor_summary_value_to_variable(v)
                    weights['wd'][num - 1] = w
                 elif re.match('f[0-9]+-biases', v.node_name) :
