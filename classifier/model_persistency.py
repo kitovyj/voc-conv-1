@@ -67,6 +67,7 @@ def load_summary_file(summary_file):
                 conv_layers_n = int(v.simple_value)
                 kernel_sizes = [None] * conv_layers_n
                 features = [None] * conv_layers_n
+                strides = [None] * conv_layers_n
                 max_pooling = [None] * conv_layers_n
                 weights['wc'] = [None] * conv_layers_n
                 biases['bc'] = [None] * conv_layers_n
@@ -85,6 +86,11 @@ def load_summary_file(summary_file):
                 split = v.tag.split('_')
                 index = int(split[-1])
                 max_pooling[index - 1] = int(v.simple_value)
+
+           elif v.tag.startswith('convolutional_layer_strides_'):
+                split = v.tag.split('_')
+                index = int(split[-1])
+                strides[index - 1] = int(v.simple_value)
 
            elif v.node_name is not None:
 
@@ -131,18 +137,18 @@ def load_summary_file(summary_file):
    e = None
    ge = None
 
-   return weights, biases, kernel_sizes, max_pooling, fc_sizes
+   return weights, biases, kernel_sizes, strides, max_pooling, fc_sizes
 
 
 def save_weights_to_summary(weight_summaries, weights, biases):
 
-    for i in range(len(weights['wc'][0])):
+    for i in range(len(weights['wc'])):
         wname = 'c' + str(i + 1) + '-weights'
         bname = 'c' + str(i + 1) + '-biases'
         weights_summaries.append(tf.summary.tensor_summary(wname, weights['wc'][i]))
         weights_summaries.append(tf.summary.tensor_summary(bname, biases['bc'][i]))
 
-    for i in range(len(weights['wd'][0])):
+    for i in range(len(weights['wd'])):
         wname = 'f' + str(i + 1) + '-weights'
         bname = 'f' + str(i + 1) + '-biases'
         weights_summaries.append(tf.summary.tensor_summary(wname, weights['wd'][i]))
