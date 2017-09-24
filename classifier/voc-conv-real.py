@@ -172,12 +172,13 @@ weights_copy = {
 }
 
 def tensor_summary_value_to_variable(value):
-    fb = numpy.frombuffer(v.tensor.tensor_content, dtype = numpy.float32)
 
-    v.tensor.tensor_content = b''
+    fb = numpy.frombuffer(value.tensor.tensor_content, dtype = numpy.float32)
+
+    value.tensor.tensor_content = b''
 
     shape = []
-    for d in v.tensor.tensor_shape.dim:
+    for d in value.tensor.tensor_shape.dim:
         shape.append(d.size)
     #fb.reshape(reversed(shape))
     fb = fb.reshape(shape)
@@ -219,7 +220,7 @@ if summary_file is None:
    # fully connected, 7*7*64 inputs, 1024 outputs
 
    for i in range(hidden_layers_n):
-   
+
       if i == 0:
       
          total_inputs = int((image_width / pk) * (image_height / pk) * inputs_n)
@@ -256,101 +257,9 @@ if summary_file is None:
 
 
 if summary_file is not None:
-
-   ge = tf.train.summary_iterator(summary_file)
-
-   for e in ge:
-       #print(e)
-       #gc.collect()
-
-       for v in e.summary.value:
-
-           #gc.collect()
-           print(v.tag)
-           print(v.node_name)
-
-           #v.node_name = v.tag
-           #print(v.node_name)
-           loaded = True
-
-           if v.tag == 'kernel_size':
-              kernel_size = int(v.simple_value)
-           elif v.tag == 'fully_connected_layers':
-                hidden_layers_n = int(v.simple_value)
-                fc_sizes = [None] * hidden_layers_n
-                weights['wd'] = [None] * hidden_layers_n
-                biases['bd'] = [None] * hidden_layers_n
-           elif v.tag.startswith('fully_connected_layer_'):
-                split = v.tag.split('_')
-                index = int(split[3])
-                fc_sizes[index - 1] = int(v.simple_value)
-
-           elif v.tag == 'convolutional_layers':
-                conv_layers_n = int(v.simple_value)
-                kernel_sizes = [None] * conv_layers_n
-                features = [None] * conv_layers_n
-                max_pooling = [None] * conv_layers_n
-                weights['wc'] = [None] * conv_layers_n
-                biases['bc'] = [None] * conv_layers_n
-
-           elif v.tag.startswith('convolutional_layer_kernel_size_'):
-                split = v.tag.split('_')
-                index = int(split[-1])
-                kernel_sizes[index - 1] = int(v.simple_value)
-
-           elif v.tag.startswith('convolutional_layer_features_'):
-                split = v.tag.split('_')
-                index = int(split[-1])
-                features[index - 1] = int(v.simple_value)
-
-           elif v.tag.startswith('convolutional_layer_max_pooling_'):
-                split = v.tag.split('_')
-                index = int(split[-1])
-                max_pooling[index - 1] = int(v.simple_value)
-
-           elif v.node_name is not None:
-
-                if v.node_name == 'out-weights':
-                   w = tensor_summary_value_to_variable(v)
-                   weights['out'] = w
-                elif v.node_name == 'out-biases':
-                   b = tensor_summary_value_to_variable(v)
-                   biases['out'] = b
-                elif re.match('c[0-9]+-weights', v.node_name) :
-                   split = v.node_name.split('-')
-                   num = int(split[0][1:])
-                   w = tensor_summary_value_to_variable(v)
-                   weights['wc'][num - 1] = w
-                elif re.match('c[0-9]+-biases', v.node_name) :
-                   split = v.node_name.split('-')
-                   num = int(split[0][1:])
-                   b = tensor_summary_value_to_variable(v)
-                   biases['bc'][num - 1] = b
-                elif re.match('f[0-9]+-weights', v.node_name) :
-                   split = v.node_name.split('-')
-                   num = int(split[0][1:])
-                   w = tensor_summary_value_to_variable(v)
-                   weights['wd'][num - 1] = w
-                elif re.match('f[0-9]+-biases', v.node_name) :
-                   split = v.node_name.split('-')
-                   num = int(split[0][1:])
-                   b = tensor_summary_value_to_variable(v)
-                   biases['bd'][num - 1] = b
-                else:
-                   loaded = False
-
-           else:
-
-                loaded = False
-
-           if loaded:
-              if (v.tag is not None) and (len(v.tag) > 0):
-                 print(v.tag + ' loaded')
-              else:
-                 print(v.node_name + ' loaded')
-   e = None
-   ge = None
-
+   weights, biases, kernel_sizes, max_pooling, fc_sizes = model_persistency.load_summary_file(summary_file)
+   hidden_layers_n = len(weights['wd'])
+   conv_layers_n = len(weights['wc'])
 
 for i in range(hidden_layers_n):
   weights_copy['wd'].append(tf.Variable(weights['wd'][i].initialized_value()))
@@ -783,20 +692,7 @@ print("saving weights...")
 
 weights_summaries = []
 
-for i in range(conv_layers_n):
-    wname = 'c' + str(i + 1) + '-weights'
-    bname = 'c' + str(i + 1) + '-biases'
-    weights_summaries.append(tf.summary.tensor_summary(wname, weights['wc'][i]))
-    weights_summaries.append(tf.summary.tensor_summary(bname, biases['bc'][i]))
-
-for i in range(hidden_layers_n):
-    wname = 'f' + str(i + 1) + '-weights'
-    bname = 'f' + str(i + 1) + '-biases'
-    weights_summaries.append(tf.summary.tensor_summary(wname, weights['wd'][i]))
-    weights_summaries.append(tf.summary.tensor_summary(bname, biases['bd'][i]))
-
-weights_summaries.append(tf.summary.tensor_summary('out-weights', weights['out']))
-weights_summaries.append(tf.summary.tensor_summary('out-biases', biases['out']))
+model_persistency.save_weights_to_summary(weights_summaries, weights, biases)
 
 weights_summary = tf.summary.merge(weights_summaries)
 
