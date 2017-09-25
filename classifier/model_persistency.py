@@ -140,7 +140,7 @@ def load_summary_file(summary_file):
    return weights, biases, kernel_sizes, strides, max_pooling, fc_sizes
 
 
-def save_weights_to_summary(weight_summaries, weights, biases):
+def save_weights_to_summary(weights_summaries, weights, biases):
 
     for i in range(len(weights['wc'])):
         wname = 'c' + str(i + 1) + '-weights'
