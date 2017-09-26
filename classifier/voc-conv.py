@@ -655,7 +655,7 @@ def calc_test_accuracy():
     acc_sum = 0.0
     for i in range(batches):
 
-        x, y = sess.run([x1_batch1, y1_batch], feed_dict = { dropout_ph: dropout } )
+        x, y = sess.run([x1_batch, y1_batch], feed_dict = { dropout_ph: dropout } )
 
         p = sess.run([pred], feed_dict = { x_batch_ph: x, y_batch_ph : y, dropout_ph: 0.0, is_training_ph: False } )
         
