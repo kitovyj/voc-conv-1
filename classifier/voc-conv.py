@@ -658,7 +658,7 @@ def calc_test_accuracy():
 
         x, y = sess.run([x1_batch, y1_batch], feed_dict = { dropout_ph: dropout } )
 
-        p = sess.run([pred], feed_dict = { x_batch_ph: x, y_batch_ph : y, dropout_ph: 0.0, is_training_ph: False } )
+        p = sess.run(pred, feed_dict = { x_batch_ph: x, y_batch_ph : y, dropout_ph: 0.0, is_training_ph: False } )
         
         acc = sess.run(accuracy, feed_dict = { pred_batch_ph : p, y_batch_ph : y } )
         print(acc)
