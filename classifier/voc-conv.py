@@ -231,8 +231,9 @@ if summary_file is None:
       ks = kernel_sizes[i]
       fs = features[i]
       mp = max_pooling[i]
+      s = strides[i]
 
-      pk = pk * mp
+      pk = pk * mp * s
 
       if i == 0:
          biases['bc'].append(tf.Variable(tf.zeros([fs])))
