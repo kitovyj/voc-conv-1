@@ -17,6 +17,7 @@ parser = argparse.ArgumentParser()
 
 parser.add_argument('--kernel-sizes', dest = 'kernel_sizes', type = int, nargs = '+', default = [], help = 'convolutional layers kernel sizes')
 parser.add_argument('--features', dest = 'features', type = int, nargs = '+', default = [], help = 'convolutional layers features')
+parser.add_argument('--strides', dest = 'strides', type = int, nargs = '+', default = [1, 1], help = 'convolutional layers strides')
 parser.add_argument('--max-pooling', dest = 'max_pooling', type = int, nargs = '+', default = [], help = 'convolutional layers max pooling')
 parser.add_argument('--fc-sizes', dest = 'fc_sizes', type = int, nargs = '+', default = 1024, help = 'fully connected layer size')
 parser.add_argument('--fc-num', dest = 'fc_num', type = int, default = 1, help = 'fully connected layers number')
@@ -36,6 +37,7 @@ args = parser.parse_args()
 
 kernel_sizes = args.kernel_sizes
 features = args.features
+strides = args.strides
 max_pooling = args.max_pooling
 fc_sizes = args.fc_sizes
 
@@ -44,6 +46,9 @@ if not isinstance(fc_sizes, list):
 
 if not isinstance(kernel_sizes, list):
    kernel_sizes = [kernel_sizes]
+
+if not isinstance(strides, list):
+   max_pooling = [max_pooling]
 
 if not isinstance(max_pooling, list):
    max_pooling = [max_pooling]
@@ -95,41 +100,60 @@ learning_rate_ph = tf.placeholder(tf.float32)
 is_training_ph = tf.placeholder(tf.bool)
 
 
+def random_string(length = 10):
+    letters = string.ascii_lowercase
+    return ''.join(random.choice(letters) for i in range(length))
+
 # Create some wrappers for simplicity
-
-def conv2d(x, W, b, strides, is_training):
-    # Conv2D wrapper, with bias and relu activation
-    x = tf.nn.conv2d(x, W, strides = [1, strides, strides, 1], padding = 'SAME')
-    x = tf.nn.bias_add(x, b)
-
-    if batch_normalization:
-        x = tf.layers.batch_normalization(x, training = is_training)
-
-    return tf.nn.relu(x)
-
 
 def maxpool2d(x, k = 2):
     # MaxPool2D wrapper
     return tf.nn.max_pool(x, ksize=[1, k, k, 1], strides=[1, k, k, 1],
                           padding='SAME')
 
-
 # Create model
-def conv_net(x, weights, biases, dropout, is_training, out_name = None):
+def conv_net(x, weights, biases, normalization_data, dropout, is_training, out_name = None):
     # Reshape input picture
-    x = tf.reshape(x, shape = [-1, image_width, image_height, 1])
+    x = tf.reshape(x, shape = [-1, image_width, image_height, 3])
 
     conv = x
 
     for i in range(conv_layers_n):
+    
         ks = kernel_sizes[i]
         fs = features[i]
-        mp = max_pooling[i]
+        mp = max_pooling[i]        
 
         # Convolution Layer
-        conv = conv2d(conv, weights['wc'][i], biases['bc'][i], 1, is_training)
+        
+        conv = tf.nn.conv2d(conv, weights['wc'][i], strides = [1, strides[i], strides[i], 1], padding = 'SAME')
+        
+        if batch_normalization:
+            layer_name = random_string()
 
+            if len(normalization_data['nc']) > i:            
+                mmi = normalization_data['nc'][i][0]
+                mvi = normalization_data['nc'][i][1]
+            else:
+                mmi = tf.zeros_initializer()
+                mvi = tf.ones_initializer()
+                normalization_data['nc'].append(None)
+
+            conv = tf.layers.batch_normalization(conv, training = is_training, name = layer_name, moving_mean_initializer = mmi, moving_variance_initializer = mvi)
+            
+            # the only way to get the layer variables...
+            with tf.variable_scope(layer_name, reuse = True):
+                mm = tf.get_variable('moving_mean')
+                mv = tf.get_variable('moving_variance')
+            
+            normalization_data['nc'][i] = (mm, mv)
+            
+        conv = tf.nn.bias_add(conv, biases['bc'][i])
+        
+        conv = tf.nn.relu(conv)
+        
         # Max Pooling (down-sampling)
+        
         if mp > 1:
            conv = maxpool2d(conv, k = mp)
 
@@ -138,12 +162,31 @@ def conv_net(x, weights, biases, dropout, is_training, out_name = None):
     fc = tf.reshape(conv, [-1, weights['wd'][0].get_shape().as_list()[0]])
 
     for i in range(hidden_layers_n):
-        fc = tf.add(tf.matmul(fc, weights['wd'][i]), biases['bd'][i])
-
+      
+        fc = tf.matmul(fc, weights['wd'][i])
+        
         if batch_normalization:
-           fc = tf.layers.batch_normalization(fc, training = is_training)
+            layer_name = random_string()
 
+            if len(normalization_data['nd']) > i:            
+                mmi = normalization_data['nd'][i][0]
+                mvi = normalization_data['nd'][i][1]
+            else:
+                mmi = tf.zeros_initializer()
+                mvi = tf.ones_initializer()
+                normalization_data['nd'].append(None)
+           
+            fc = tf.layers.batch_normalization(fc, training = is_training, name = layer_name, moving_mean_initializer = mmi, moving_variance_initializer = mvi)
+            # the only way to get the layer variables...
+            with tf.variable_scope(layer_name, reuse = True):
+                mm = tf.get_variable('moving_mean')
+                mv = tf.get_variable('moving_variance')
+            normalization_data['nd'][i] = (mm, mv)
+        
+        fc = tf.add(fc, biases['bd'][i])
+        
         fc = tf.nn.relu(fc)
+        
         # Apply Dropout
         fc = tf.nn.dropout(fc, 1.0 - dropout)
 
@@ -159,14 +202,18 @@ biases = {
     'out': None
 }
 
-
-# Store layers weight & bias
 weights = {
     'wc': [],
     'wd': [],
     'out': None
 }
 
+normalization_data = {
+    'nc': [],
+    'nd': []
+}
+
+# Store layers weight & bias
 
 weights_copy = {
     'wc': [],
@@ -249,7 +296,7 @@ if summary_file is None:
 
 
 if summary_file is not None:
-   weights, biases, kernel_sizes, max_pooling, fc_sizes = model_persistency.load_summary_file(summary_file)
+   weights, biases, normalization_data, kernel_sizes, strides, max_pooling, fc_sizes = model_persistency.load_summary_file(summary_file)
    hidden_layers_n = len(weights['wd'])
    conv_layers_n = len(weights['wc'])
 
@@ -446,12 +493,16 @@ with tf.control_dependencies(update_ops):
 
 # Define evaluation pipeline
 
+
 x1, y1 = input_data(train_amount, test_amount, shuffle = False, do_augment = False)
 x1.set_shape([image_height * image_width])
 y1.set_shape([n_classes])
 
 x1_batch, y1_batch = tf.train.batch([x1, y1], batch_size = eval_batch_size)
+
+'''
 pred1 = conv_net(x1_batch, weights, biases, dropout_ph, is_training_ph)
+'''
 
 #pred1 = conv_net(x1_batch, weights, biases, dropout_ph)
 #y1_batch = tf.Print(y1_batch, [y1_batch], 'label', summarize = 30)
@@ -498,6 +549,8 @@ for i in range(len(kernel_sizes)):
     const_summaries.append(tf.summary.scalar(name, tf.constant(kernel_sizes[i])))
     name = 'convolutional_layer_features_' + str(i + 1)
     const_summaries.append(tf.summary.scalar(name, tf.constant(features[i])))
+    name = 'convolutional_layer_strides_' + str(i + 1)
+    const_summaries.append(tf.summary.scalar(name, tf.constant(strides[i])))
     name = 'convolutional_layer_max_pooling_' + str(i + 1)
     const_summaries.append(tf.summary.scalar(name, tf.constant(max_pooling[i])))
 
@@ -550,6 +603,9 @@ for i in range(len(kernel_sizes)):
 for i in range(len(features)):
     print('conv. layer ' + str(i + 1) + ' features: ' + str(features[i]))
 
+for i in range(len(strides)):
+    print('conv. layer ' + str(i + 1) + ' strides: ' + str(strides[i]))
+    
 for i in range(len(max_pooling)):
     print('conv. layer ' + str(i + 1) + ' max pooling: ' + str(max_pooling[i]))
 
@@ -598,10 +654,14 @@ def calc_test_accuracy():
 
     acc_sum = 0.0
     for i in range(batches):
-       p, y = sess.run([pred1, y1_batch], feed_dict = { dropout_ph: 0.0, is_training_ph: False } )
-       acc = sess.run(accuracy, feed_dict = { pred_batch_ph : p, y_batch_ph : y } )
-       print(acc)
-       acc_sum = acc_sum + acc
+
+        x, y = sess.run([x_batch1, y_batch1], feed_dict = { dropout_ph: dropout } )
+
+        p = sess.run([pred], feed_dict = { x_batch_ph: x, y_batch_ph : y, dropout_ph: 0.0, is_training_ph: False } )
+        
+        acc = sess.run(accuracy, feed_dict = { pred_batch_ph : p, y_batch_ph : y } )
+        print(acc)
+        acc_sum = acc_sum + acc
 
     accuracy_value = acc_sum / batches
 
@@ -683,7 +743,7 @@ print("saving weights...")
 
 weights_summaries = []
 
-model_persistency.save_weights_to_summary(weights_summaries, weights, biases)
+model_persistency.save_weights_to_summary(weights_summaries, weights, biases, normalization_data)
 
 weights_summary = tf.summary.merge(weights_summaries)
 
