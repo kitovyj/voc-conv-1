@@ -11,6 +11,7 @@ import random
 import tensorflow as tf
 import tf_visualization
 import math
+import string
 import model_persistency
 
 parser = argparse.ArgumentParser()
