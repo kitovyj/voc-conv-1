@@ -114,7 +114,7 @@ def maxpool2d(x, k = 2):
 # Create model
 def conv_net(x, weights, biases, normalization_data, dropout, is_training, out_name = None):
     # Reshape input picture
-    x = tf.reshape(x, shape = [-1, image_width, image_height, 3])
+    x = tf.reshape(x, shape = [-1, image_width, image_height, 1])
 
     conv = x
 
