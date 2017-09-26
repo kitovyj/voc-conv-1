@@ -119,7 +119,7 @@ def conv_net(x, weights, biases, normalization_data, dropout, is_training, out_n
     conv = x
 
     for i in range(conv_layers_n):
-    
+        
         ks = kernel_sizes[i]
         fs = features[i]
         mp = max_pooling[i]        
@@ -132,8 +132,8 @@ def conv_net(x, weights, biases, normalization_data, dropout, is_training, out_n
             layer_name = random_string()
 
             if len(normalization_data['nc']) > i:            
-                mmi = normalization_data['nc'][i][0]
-                mvi = normalization_data['nc'][i][1]
+                mmi = tf.constant_initializer(normalization_data['nc'][i][0])
+                mvi = tf.constant_initializer(normalization_data['nc'][i][1])
             else:
                 mmi = tf.zeros_initializer()
                 mvi = tf.ones_initializer()
@@ -146,7 +146,7 @@ def conv_net(x, weights, biases, normalization_data, dropout, is_training, out_n
                 mm = tf.get_variable('moving_mean')
                 mv = tf.get_variable('moving_variance')
             
-            normalization_data['nc'][i] = (mm, mv)
+            normalization_data['nc'][i] = [mm, mv]
             
         conv = tf.nn.bias_add(conv, biases['bc'][i])
         
@@ -169,8 +169,8 @@ def conv_net(x, weights, biases, normalization_data, dropout, is_training, out_n
             layer_name = random_string()
 
             if len(normalization_data['nd']) > i:            
-                mmi = normalization_data['nd'][i][0]
-                mvi = normalization_data['nd'][i][1]
+                mmi = tf.constant_initializer(normalization_data['nd'][i][0])
+                mvi = tf.constant_initializer(normalization_data['nd'][i][1])
             else:
                 mmi = tf.zeros_initializer()
                 mvi = tf.ones_initializer()
@@ -181,7 +181,7 @@ def conv_net(x, weights, biases, normalization_data, dropout, is_training, out_n
             with tf.variable_scope(layer_name, reuse = True):
                 mm = tf.get_variable('moving_mean')
                 mv = tf.get_variable('moving_variance')
-            normalization_data['nd'][i] = (mm, mv)
+            normalization_data['nd'][i] = [mm, mv]
         
         fc = tf.add(fc, biases['bd'][i])
         
@@ -194,7 +194,6 @@ def conv_net(x, weights, biases, normalization_data, dropout, is_training, out_n
     # Output, class prediction
     out = tf.add(tf.matmul(fc, weights['out']), biases['out'], name = out_name)
     return out
-
 
 biases = {
     'bc': [],
@@ -296,7 +295,7 @@ if summary_file is None:
 
 
 if summary_file is not None:
-   weights, biases, normalization_data, kernel_sizes, strides, max_pooling, fc_sizes = model_persistency.load_summary_file(summary_file)
+   weights, biases, normalization_data, kernel_sizes, features, strides, max_pooling, fc_sizes = model_persistency.load_summary_file(summary_file)
    hidden_layers_n = len(weights['wd'])
    conv_layers_n = len(weights['wc'])
 
