@@ -1,0 +1,1 @@
+ffmpeg -framerate 100 -i conv%09d.png -sws_flags neighbor -r 30 -vcodec rawvideo -vf colorchannelmixer=0.0:0.0:1.0:0:0.0:1.0:0.0:0:1.0:0.0:0.0,scale=1024:-1 out.avi

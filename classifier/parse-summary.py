@@ -8,10 +8,10 @@ print('reading...')
 i = 0
 
 for e in tf.train.summary_iterator(path):
-    sz = sys.getsizeof(e)
+    #sz = sys.getsizeof(e)
     #print(str(sz))
-    print(e)
-    '''
+    #print(e)
+
     for v in e.summary.value:
         if v.tag.startswith('conv'):
             content = v.image.encoded_image_string
@@ -19,4 +19,4 @@ for e in tf.train.summary_iterator(path):
             with open(fname, 'wb') as f:
                 f.write(content)    
                 i = i + 1
-    '''
+
