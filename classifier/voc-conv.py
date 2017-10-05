@@ -115,7 +115,7 @@ def maxpool2d(x, k = 2):
 # Create model
 def conv_net(x, weights, biases, normalization_data, dropout, is_training, out_name = None):
     # Reshape input picture
-    x = tf.reshape(x, shape = [-1, image_width, image_height, 1])
+    x = tf.reshape(x, shape = [-1, image_width, image_height, 3])
 
     conv = x
 
@@ -133,21 +133,38 @@ def conv_net(x, weights, biases, normalization_data, dropout, is_training, out_n
             layer_name = random_string()
 
             if len(normalization_data['nc']) > i:            
-                mmi = tf.constant_initializer(normalization_data['nc'][i][0])
-                mvi = tf.constant_initializer(normalization_data['nc'][i][1])
+
+                data = normalization_data['nc'][i]
+
+                mmi = tf.constant_initializer(data[0])
+                mvi = tf.constant_initializer(data[1])
+
+                if data[2] is not None:
+                   bi = tf.constant_initializer(data[2])
+                   gi = tf.constant_initializer(data[3])
+                else:
+                   bi = tf.zeros_initializer()
+                   gi = tf.ones_initializer()
+
+
             else:
                 mmi = tf.zeros_initializer()
                 mvi = tf.ones_initializer()
+                bi = tf.zeros_initializer()
+                gi = tf.ones_initializer()
                 normalization_data['nc'].append(None)
 
-            conv = tf.layers.batch_normalization(conv, training = is_training, name = layer_name, moving_mean_initializer = mmi, moving_variance_initializer = mvi)
+            conv = tf.layers.batch_normalization(conv, training = is_training, name = layer_name, moving_mean_initializer = mmi, \
+                moving_variance_initializer = mvi, gamma_initializer = gi, beta_initializer = bi)
             
             # the only way to get the layer variables...
             with tf.variable_scope(layer_name, reuse = True):
                 mm = tf.get_variable('moving_mean')
                 mv = tf.get_variable('moving_variance')
-            
-            normalization_data['nc'][i] = [mm, mv]
+                beta = tf.get_variable('beta')
+                gamma = tf.get_variable('gamma')
+
+            normalization_data['nc'][i] = [mm, mv, beta, gamma]
             
         conv = tf.nn.bias_add(conv, biases['bc'][i])
         
@@ -169,20 +186,37 @@ def conv_net(x, weights, biases, normalization_data, dropout, is_training, out_n
         if batch_normalization:
             layer_name = random_string()
 
-            if len(normalization_data['nd']) > i:            
-                mmi = tf.constant_initializer(normalization_data['nd'][i][0])
-                mvi = tf.constant_initializer(normalization_data['nd'][i][1])
+            if len(normalization_data['nd']) > i:
+
+                data = normalization_data['nd'][i]
+
+                mmi = tf.constant_initializer(data[0])
+                mvi = tf.constant_initializer(data[1])
+
+                if data[2] is not None:
+                   bi = tf.constant_initializer(data[2])
+                   gi = tf.constant_initializer(data[3])
+                else:
+                   bi = tf.zeros_initializer()
+                   gi = tf.ones_initializer()
+
             else:
                 mmi = tf.zeros_initializer()
                 mvi = tf.ones_initializer()
+                bi = tf.zeros_initializer()
+                gi = tf.ones_initializer()
                 normalization_data['nd'].append(None)
-           
-            fc = tf.layers.batch_normalization(fc, training = is_training, name = layer_name, moving_mean_initializer = mmi, moving_variance_initializer = mvi)
+
+            fc = tf.layers.batch_normalization(fc, training = is_training, name = layer_name, moving_mean_initializer = mmi, \
+                moving_variance_initializer = mvi, gamma_initializer = gi, beta_initializer = bi)
+
             # the only way to get the layer variables...
             with tf.variable_scope(layer_name, reuse = True):
                 mm = tf.get_variable('moving_mean')
                 mv = tf.get_variable('moving_variance')
-            normalization_data['nd'][i] = [mm, mv]
+                beta = tf.get_variable('beta')
+                gamma = tf.get_variable('gamma')
+            normalization_data['nd'][i] = [mm, mv, beta, gamma]
         
         fc = tf.add(fc, biases['bd'][i])
         
