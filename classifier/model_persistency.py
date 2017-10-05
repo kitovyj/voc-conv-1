@@ -12,8 +12,6 @@ import math
 def tensor_summary_value_to_numpy(value):
     fb = numpy.frombuffer(value.tensor.tensor_content, dtype = numpy.float32)
 
-    value.tensor.tensor_content = b''
-
     shape = []
     for d in value.tensor.tensor_shape.dim:
         shape.append(d.size)
@@ -26,7 +24,6 @@ def tensor_summary_value_to_variable(value):
 
     #w = tf.Variable.from_proto(v)
     var = tf.Variable(fb)
-    fb = None
     return var
     
 def load_summary_file(summary_file):
@@ -63,7 +60,9 @@ def load_summary_file(summary_file):
                 
                 weights['wd'] = [None] * hidden_layers_n
                 biases['bd'] = [None] * hidden_layers_n
-                normalization_data['nd'] = [[None, None]] * hidden_layers_n
+
+                for i in range(hidden_layers_n):
+                    normalization_data['nd'].append([None, None, None, None])
                 
            elif v.tag.startswith('fully_connected_layer_'):
                 split = v.tag.split('_')
@@ -78,7 +77,9 @@ def load_summary_file(summary_file):
                 max_pooling = [None] * conv_layers_n
                 weights['wc'] = [None] * conv_layers_n
                 biases['bc'] = [None] * conv_layers_n
-                normalization_data['nc'] = [[None, None]] * conv_layers_n
+
+                for i in range(conv_layers_n):
+                    normalization_data['nc'].append([None, None, None, None])
 
            elif v.tag.startswith('convolutional_layer_kernel_size_'):
                 split = v.tag.split('_')
@@ -133,6 +134,7 @@ def load_summary_file(summary_file):
                 elif re.match('nc[0-9]+-mean', v.node_name) :
                    split = v.node_name.split('-')
                    num = int(split[0][2:])
+                   print("loading mean value for conv. layer " + str(num))
                    n = tensor_summary_value_to_numpy(v)
                    normalization_data['nc'][num - 1][0] = n
                 elif re.match('nc[0-9]+-var', v.node_name) :
@@ -140,6 +142,16 @@ def load_summary_file(summary_file):
                    num = int(split[0][2:])
                    n = tensor_summary_value_to_numpy(v)
                    normalization_data['nc'][num - 1][1] = n
+                elif re.match('nc[0-9]+-beta', v.node_name) :
+                   split = v.node_name.split('-')
+                   num = int(split[0][2:])
+                   n = tensor_summary_value_to_numpy(v)
+                   normalization_data['nc'][num - 1][2] = n
+                elif re.match('nc[0-9]+-gamma', v.node_name) :
+                   split = v.node_name.split('-')
+                   num = int(split[0][2:])
+                   n = tensor_summary_value_to_numpy(v)
+                   normalization_data['nc'][num - 1][3] = n
                 elif re.match('nd[0-9]+-mean', v.node_name) :
                    split = v.node_name.split('-')
                    num = int(split[0][2:])
@@ -150,6 +162,16 @@ def load_summary_file(summary_file):
                    num = int(split[0][2:])
                    n = tensor_summary_value_to_numpy(v)
                    normalization_data['nd'][num - 1][1] = n
+                elif re.match('nd[0-9]+-beta', v.node_name) :
+                   split = v.node_name.split('-')
+                   num = int(split[0][2:])
+                   n = tensor_summary_value_to_numpy(v)
+                   normalization_data['nd'][num - 1][2] = n
+                elif re.match('nd[0-9]+-gamma', v.node_name) :
+                   split = v.node_name.split('-')
+                   num = int(split[0][2:])
+                   n = tensor_summary_value_to_numpy(v)
+                   normalization_data['nd'][num - 1][3] = n
                 else:
                    loaded = False
 
@@ -188,13 +210,21 @@ def save_weights_to_summary(weights_summaries, weights, biases, normalization_da
     for i in range(len(normalization_data['nc'])):
         mname = 'nc' + str(i + 1) + '-mean'
         vname = 'nc' + str(i + 1) + '-var'
+        bname = 'nc' + str(i + 1) + '-beta'
+        gname = 'nc' + str(i + 1) + '-gamma'
         weights_summaries.append(tf.summary.tensor_summary(mname, normalization_data['nc'][i][0]))
         weights_summaries.append(tf.summary.tensor_summary(vname, normalization_data['nc'][i][1]))
-    
+        weights_summaries.append(tf.summary.tensor_summary(bname, normalization_data['nc'][i][2]))
+        weights_summaries.append(tf.summary.tensor_summary(gname, normalization_data['nc'][i][3]))
+
     for i in range(len(normalization_data['nd'])):
         mname = 'nd' + str(i + 1) + '-mean'
         vname = 'nd' + str(i + 1) + '-var'
+        bname = 'nd' + str(i + 1) + '-beta'
+        gname = 'nd' + str(i + 1) + '-gamma'
         weights_summaries.append(tf.summary.tensor_summary(mname, normalization_data['nd'][i][0]))
         weights_summaries.append(tf.summary.tensor_summary(vname, normalization_data['nd'][i][1]))
-    
+        weights_summaries.append(tf.summary.tensor_summary(bname, normalization_data['nd'][i][2]))
+        weights_summaries.append(tf.summary.tensor_summary(gname, normalization_data['nd'][i][3]))
+
     
