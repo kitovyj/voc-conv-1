@@ -100,7 +100,6 @@ cost_ph = tf.placeholder(tf.float32)
 learning_rate_ph = tf.placeholder(tf.float32)
 is_training_ph = tf.placeholder(tf.bool)
 
-
 def random_string(length = 10):
     letters = string.ascii_lowercase
     return ''.join(random.choice(letters) for i in range(length))

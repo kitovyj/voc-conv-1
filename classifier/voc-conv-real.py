@@ -525,7 +525,7 @@ x1.set_shape([image_height * image_width])
 y1.set_shape([n_classes])
 
 x1_batch, y1_batch = tf.train.batch([x1, y1], batch_size = eval_batch_size)
-pred1 = conv_net(x1_batch, weights, biases, normalization_data, dropout_ph, is_training_ph)
+#pred1 = conv_net(x1_batch, weights, biases, normalization_data, dropout_ph, is_training_ph)
 
 #pred1 = conv_net(x1_batch, weights, biases, dropout_ph)
 #y1_batch = tf.Print(y1_batch, [y1_batch], 'label', summarize = 30)
@@ -683,7 +683,7 @@ def calc_test_accuracy():
     for n in range(n_classes + 1):
         acc_sum = 0.0
         for i in range(batches_per_class):
-            p, y = sess.run([pred1, y1_batch], feed_dict = { dropout_ph: 0.0, is_training_ph: False } )
+            p, y = sess.run([pred, y1_batch], feed_dict = { dropout_ph: 0.0, is_training_ph: False } )
             acc = sess.run(accuracy, feed_dict = { pred_batch_ph : p, y_batch_ph : y } )
             acc_sum = acc_sum + acc
         class_accuracies[n] = acc_sum / batches_per_class
