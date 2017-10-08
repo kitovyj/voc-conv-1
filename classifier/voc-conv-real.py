@@ -1,5 +1,3 @@
-from __future__ import print_function
-
 import sys
 import numpy
 import argparse
@@ -10,11 +8,15 @@ import scipy.misc
 import random
 import tensorflow as tf
 import tf_visualization
+import math
+import string
+import model_persistency
 
 parser = argparse.ArgumentParser()
 
 parser.add_argument('--kernel-sizes', dest = 'kernel_sizes', type = int, nargs = '+', default = [], help = 'convolutional layers kernel sizes')
 parser.add_argument('--features', dest = 'features', type = int, nargs = '+', default = [], help = 'convolutional layers features')
+parser.add_argument('--strides', dest = 'strides', type = int, nargs = '+', default = [1, 1], help = 'convolutional layers strides')
 parser.add_argument('--max-pooling', dest = 'max_pooling', type = int, nargs = '+', default = [], help = 'convolutional layers max pooling')
 parser.add_argument('--fc-sizes', dest = 'fc_sizes', type = int, nargs = '+', default = 1024, help = 'fully connected layer size')
 parser.add_argument('--fc-num', dest = 'fc_num', type = int, default = 1, help = 'fully connected layers number')
@@ -23,7 +25,7 @@ parser.add_argument('--initial-weights-seed', dest = 'initial_weights_seed', typ
 parser.add_argument('--dropout', dest = 'dropout', type = float, default = 0.0, help = 'drop out probability')
 parser.add_argument('--epochs', dest = 'epochs', type = int, default = 40, help = 'number of training epochs')
 parser.add_argument('--train-amount', dest = 'train_amount', type = int, default = 11020, help = 'number of training samples')
-parser.add_argument('--data-path', dest = 'data_path', default = './vocs_data3/', help = 'the path where input data are stored')
+parser.add_argument('--data-path', dest = 'data_path', default = './vocs_data/', help = 'the path where input data are stored')
 parser.add_argument('--test-data-path', dest = 'test_data_path', default = None, help = 'the path where input test data are stored')
 parser.add_argument('--test-amount', dest = 'test_amount', type = int, default = 500, help = 'number of test samples')
 parser.add_argument('--summary-file', dest = 'summary_file', default = None, help = 'the summary file where the trained weights and network parameters are stored')
@@ -34,6 +36,7 @@ args = parser.parse_args()
 
 kernel_sizes = args.kernel_sizes
 features = args.features
+strides = args.strides
 max_pooling = args.max_pooling
 fc_sizes = args.fc_sizes
 
@@ -42,6 +45,9 @@ if not isinstance(fc_sizes, list):
 
 if not isinstance(kernel_sizes, list):
    kernel_sizes = [kernel_sizes]
+
+if not isinstance(strides, list):
+   max_pooling = [max_pooling]
 
 if not isinstance(max_pooling, list):
    max_pooling = [max_pooling]
@@ -92,41 +98,80 @@ cost_ph = tf.placeholder(tf.float32)
 learning_rate_ph = tf.placeholder(tf.float32)
 is_training_ph = tf.placeholder(tf.bool)
 
+
 # Create some wrappers for simplicity
 
-def conv2d(x, W, b, strides, is_training):
-    # Conv2D wrapper, with bias and relu activation
-    x = tf.nn.conv2d(x, W, strides = [1, strides, strides, 1], padding = 'SAME')
-    x = tf.nn.bias_add(x, b)
+def random_string(length = 10):
+    letters = string.ascii_lowercase
+    return ''.join(random.choice(letters) for i in range(length))
 
-    if batch_normalization:
-        x = tf.layers.batch_normalization(x, training = is_training)
-
-    return tf.nn.relu(x)
-
+# Create some wrappers for simplicity
 
 def maxpool2d(x, k = 2):
     # MaxPool2D wrapper
     return tf.nn.max_pool(x, ksize=[1, k, k, 1], strides=[1, k, k, 1],
                           padding='SAME')
 
-
 # Create model
-def conv_net(x, weights, biases, dropout, is_training, out_name = None):
+def conv_net(x, weights, biases, normalization_data, dropout, is_training, out_name = None):
     # Reshape input picture
     x = tf.reshape(x, shape = [-1, image_width, image_height, 1])
 
     conv = x
 
     for i in range(conv_layers_n):
+        
         ks = kernel_sizes[i]
         fs = features[i]
-        mp = max_pooling[i]
+        mp = max_pooling[i]        
 
         # Convolution Layer
-        conv = conv2d(conv, weights['wc'][i], biases['bc'][i], 1, is_training)
+        
+        conv = tf.nn.conv2d(conv, weights['wc'][i], strides = [1, strides[i], strides[i], 1], padding = 'SAME')
+        
+        if batch_normalization:
+            layer_name = random_string()
 
+            if len(normalization_data['nc']) > i:            
+
+                data = normalization_data['nc'][i]
+
+                mmi = tf.constant_initializer(data[0])
+                mvi = tf.constant_initializer(data[1])
+
+                if data[2] is not None:
+                   bi = tf.constant_initializer(data[2])
+                   gi = tf.constant_initializer(data[3])
+                else:
+                   bi = tf.zeros_initializer()
+                   gi = tf.ones_initializer()
+
+
+            else:
+                mmi = tf.zeros_initializer()
+                mvi = tf.ones_initializer()
+                bi = tf.zeros_initializer()
+                gi = tf.ones_initializer()
+                normalization_data['nc'].append(None)
+
+            conv = tf.layers.batch_normalization(conv, training = is_training, name = layer_name, moving_mean_initializer = mmi, \
+                moving_variance_initializer = mvi, gamma_initializer = gi, beta_initializer = bi)
+            
+            # the only way to get the layer variables...
+            with tf.variable_scope(layer_name, reuse = True):
+                mm = tf.get_variable('moving_mean')
+                mv = tf.get_variable('moving_variance')
+                beta = tf.get_variable('beta')
+                gamma = tf.get_variable('gamma')
+
+            normalization_data['nc'][i] = [mm, mv, beta, gamma]
+            
+        conv = tf.nn.bias_add(conv, biases['bc'][i])
+        
+        conv = tf.nn.relu(conv)
+        
         # Max Pooling (down-sampling)
+        
         if mp > 1:
            conv = maxpool2d(conv, k = mp)
 
@@ -135,12 +180,48 @@ def conv_net(x, weights, biases, dropout, is_training, out_name = None):
     fc = tf.reshape(conv, [-1, weights['wd'][0].get_shape().as_list()[0]])
 
     for i in range(hidden_layers_n):
-        fc = tf.add(tf.matmul(fc, weights['wd'][i]), biases['bd'][i])
-
+      
+        fc = tf.matmul(fc, weights['wd'][i])
+        
         if batch_normalization:
-           fc = tf.layers.batch_normalization(fc, training = is_training)
+            layer_name = random_string()
 
+            if len(normalization_data['nd']) > i:
+
+                data = normalization_data['nd'][i]
+
+                mmi = tf.constant_initializer(data[0])
+                mvi = tf.constant_initializer(data[1])
+
+                if data[2] is not None:
+                   bi = tf.constant_initializer(data[2])
+                   gi = tf.constant_initializer(data[3])
+                else:
+                   bi = tf.zeros_initializer()
+                   gi = tf.ones_initializer()
+
+            else:
+                mmi = tf.zeros_initializer()
+                mvi = tf.ones_initializer()
+                bi = tf.zeros_initializer()
+                gi = tf.ones_initializer()
+                normalization_data['nd'].append(None)
+
+            fc = tf.layers.batch_normalization(fc, training = is_training, name = layer_name, moving_mean_initializer = mmi, \
+                moving_variance_initializer = mvi, gamma_initializer = gi, beta_initializer = bi)
+
+            # the only way to get the layer variables...
+            with tf.variable_scope(layer_name, reuse = True):
+                mm = tf.get_variable('moving_mean')
+                mv = tf.get_variable('moving_variance')
+                beta = tf.get_variable('beta')
+                gamma = tf.get_variable('gamma')
+            normalization_data['nd'][i] = [mm, mv, beta, gamma]
+        
+        fc = tf.add(fc, biases['bd'][i])
+        
         fc = tf.nn.relu(fc)
+        
         # Apply Dropout
         fc = tf.nn.dropout(fc, 1.0 - dropout)
 
@@ -149,44 +230,30 @@ def conv_net(x, weights, biases, dropout, is_training, out_name = None):
     out = tf.add(tf.matmul(fc, weights['out']), biases['out'], name = out_name)
     return out
 
-
 biases = {
     'bc': [],
     'bd': [],
     'out': None
 }
 
-
-# Store layers weight & bias
 weights = {
     'wc': [],
     'wd': [],
     'out': None
 }
 
+normalization_data = {
+    'nc': [],
+    'nd': []
+}
+
+# Store layers weight & bias
 
 weights_copy = {
     'wc': [],
     'wd': [],
     'out': None
 }
-
-def tensor_summary_value_to_variable(value):
-
-    fb = numpy.frombuffer(value.tensor.tensor_content, dtype = numpy.float32)
-
-    value.tensor.tensor_content = b''
-
-    shape = []
-    for d in value.tensor.tensor_shape.dim:
-        shape.append(d.size)
-    #fb.reshape(reversed(shape))
-    fb = fb.reshape(shape)
-
-    #w = tf.Variable.from_proto(v)
-    var = tf.Variable(fb)
-    fb = None
-    return var
 
 if summary_file is None:
 
@@ -198,13 +265,17 @@ if summary_file is None:
       ks = kernel_sizes[i]
       fs = features[i]
       mp = max_pooling[i]
+      s = strides[i]
 
-      pk = pk * mp
+      pk = pk * mp * s
 
       if i == 0:
          biases['bc'].append(tf.Variable(tf.zeros([fs])))
       else:
          biases['bc'].append(tf.Variable(tf.constant(0.1, shape=[fs], dtype=tf.float32)))
+
+      # calculate variance as 2 / (inputs + outputs)
+      # Glorot & Bengio => 2 / inputs
 
       total_inputs = ks * ks * inputs_n;
       total_outputs = fs;
@@ -212,52 +283,55 @@ if summary_file is None:
       var = 2. / (total_inputs)
       stddev = math.sqrt(var)
       print('stddev = ' + str(stddev))
-         
+
       weights['wc'].append(tf.Variable(tf.truncated_normal([ks, ks, inputs_n, fs], stddev = stddev, seed = initial_weights_seed)))
 
       inputs_n = fs
+
 
    # fully connected, 7*7*64 inputs, 1024 outputs
 
    for i in range(hidden_layers_n):
 
+      # calculate variance as 2 / (inputs + outputs)
+      # Glorot & Bengio => 2 / inputs
+
       if i == 0:
-      
+
          total_inputs = int((image_width / pk) * (image_height / pk) * inputs_n)
          total_outputs = fc_sizes[i];
          #var = 2. / (total_inputs + total_outputs)
          var = 2. / (total_inputs)
          stddev = math.sqrt(var)
          print('stddev = ' + str(stddev))
-      
+
          weights['wd'].append(tf.Variable(tf.truncated_normal([total_inputs, fc_sizes[i]], stddev = stddev, seed = initial_weights_seed)))
-         
+
       else:
-      
+
          total_inputs = fc_sizes[i - 1]
          total_outputs = fc_sizes[i];
          var = 2. / (total_inputs)
          #var = 2. / (total_inputs + total_outputs)
          stddev = math.sqrt(var)
          print('stddev = ' + str(stddev))
-      
+
          weights['wd'].append(tf.Variable(tf.truncated_normal([fc_sizes[i - 1], fc_sizes[i]], stddev = stddev, seed = initial_weights_seed)))
 
+      biases['bd'].append(tf.Variable(tf.constant(0.1, shape = [fc_sizes[i]])))
 
-      biases['bd'].append(tf.Variable(tf.constant(0.1, shape=[fc_sizes[i]])))
-      
    total_inputs = fc_sizes[-1]
    total_outputs = n_classes;
    var = 2. / (total_inputs)
-   #var = 2. / (total_inputs + total_outputs)      
+   #var = 2. / (total_inputs + total_outputs)
 
-   weights['out'] = tf.Variable(tf.truncated_normal([fc_sizes[-1], n_classes], stddev=0.1, seed = initial_weights_seed))
+   weights['out'] = tf.Variable(tf.truncated_normal([fc_sizes[-1], n_classes], stddev = math.sqrt(var), seed = initial_weights_seed))
 
-   biases['out'] = tf.Variable(tf.constant(0.1, shape=[n_classes]))
+   biases['out'] = tf.Variable(tf.constant(0.1, shape = [n_classes]))
 
 
 if summary_file is not None:
-   weights, biases, kernel_sizes, max_pooling, fc_sizes = model_persistency.load_summary_file(summary_file)
+   weights, biases, normalization_data, kernel_sizes, features, strides, max_pooling, fc_sizes = model_persistency.load_summary_file(summary_file)
    hidden_layers_n = len(weights['wd'])
    conv_layers_n = len(weights['wc'])
 
