@@ -572,6 +572,8 @@ for i in range(len(kernel_sizes)):
     const_summaries.append(tf.summary.scalar(name, tf.constant(kernel_sizes[i])))
     name = 'convolutional_layer_features_' + str(i + 1)
     const_summaries.append(tf.summary.scalar(name, tf.constant(features[i])))
+    name = 'convolutional_layer_strides_' + str(i + 1)
+    const_summaries.append(tf.summary.scalar(name, tf.constant(strides[i])))    
     name = 'convolutional_layer_max_pooling_' + str(i + 1)
     const_summaries.append(tf.summary.scalar(name, tf.constant(max_pooling[i])))
 
@@ -629,6 +631,9 @@ for i in range(len(kernel_sizes)):
 for i in range(len(features)):
     print('conv. layer ' + str(i + 1) + ' features: ' + str(features[i]))
 
+for i in range(len(strides)):
+    print('conv. layer ' + str(i + 1) + ' strides: ' + str(strides[i]))
+    
 for i in range(len(max_pooling)):
     print('conv. layer ' + str(i + 1) + ' max pooling: ' + str(max_pooling[i]))
 
