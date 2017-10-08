@@ -31,6 +31,7 @@ parser.add_argument('--test-amount', dest = 'test_amount', type = int, default =
 parser.add_argument('--summary-file', dest = 'summary_file', default = None, help = 'the summary file where the trained weights and network parameters are stored')
 parser.add_argument('--regularization', dest = 'regularization_coeff', type = float, default = 100*5E-4, help = 'fully connected layers weights regularization')
 parser.add_argument('--batch-normalization', action='store_true', dest='batch_normalization', help='if \'batch normalization\' is enabled')
+parser.add_argument('--summary-records', dest='summary_records', type = int, default = 500, help='how much summary records should be written')
 
 args = parser.parse_args()
 
@@ -69,6 +70,7 @@ test_data_path = args.test_data_path
 summary_file = args.summary_file
 regularization_coeff = args.regularization_coeff
 batch_normalization = args.batch_normalization
+summary_records = args.summary_records
 
 #image_width = 128
 #image_height = 128
@@ -647,7 +649,9 @@ print("epochs: " + str(epochs))
 print("data path: " + str(data_path))
 
 total_summary_records = 500
-summary_interval = int(max(iterations / total_summary_records, 1))
+
+summary_interval = int(max(iterations / summary_records, 1))
+
 
 print("summary interval: " + str(summary_interval))
 
