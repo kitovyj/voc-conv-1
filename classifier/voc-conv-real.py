@@ -683,7 +683,8 @@ def calc_test_accuracy():
     for n in range(n_classes + 1):
         acc_sum = 0.0
         for i in range(batches_per_class):
-            p, y = sess.run([pred, y1_batch], feed_dict = { dropout_ph: 0.0, is_training_ph: False } )
+            x, y = sess.run([x1_batch, y1_batch])
+            p = sess.run(pred, feed_dict = { dropout_ph: 0.0, is_training_ph: False, x_batch_ph: x } )
             acc = sess.run(accuracy, feed_dict = { pred_batch_ph : p, y_batch_ph : y } )
             acc_sum = acc_sum + acc
         class_accuracies[n] = acc_sum / batches_per_class
