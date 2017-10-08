@@ -471,7 +471,7 @@ y.set_shape([n_classes])
 x_batch, y_batch = tf.train.batch([x, y], batch_size = batch_size)
 
 # Construct model
-pred = conv_net(x_batch_ph, weights, biases, dropout_ph, is_training_ph)
+pred = conv_net(x_batch_ph, weights, biases, normalization_data, dropout_ph, is_training_ph)
 
 # Define loss and optimizer
 loss = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits = pred, labels = y_batch_ph))
@@ -525,7 +525,7 @@ x1.set_shape([image_height * image_width])
 y1.set_shape([n_classes])
 
 x1_batch, y1_batch = tf.train.batch([x1, y1], batch_size = eval_batch_size)
-pred1 = conv_net(x1_batch, weights, biases, dropout_ph, is_training_ph)
+pred1 = conv_net(x1_batch, weights, biases, normalization_data, dropout_ph, is_training_ph)
 
 #pred1 = conv_net(x1_batch, weights, biases, dropout_ph)
 #y1_batch = tf.Print(y1_batch, [y1_batch], 'label', summarize = 30)
