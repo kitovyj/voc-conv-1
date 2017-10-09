@@ -776,7 +776,7 @@ print("saving weights...")
 
 weights_summaries = []
 
-model_persistency.save_weights_to_summary(weights_summaries, weights, biases)
+model_persistency.save_weights_to_summary(weights_summaries, weights, biases, normalization_data)
 
 weights_summary = tf.summary.merge(weights_summaries)
 
