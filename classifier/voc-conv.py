@@ -441,12 +441,12 @@ def input_data(start_index, amount, shuffle, do_augment):
     #data_shape = tf.shape(data);
     #data = tf.Print(data, [data_shape], message = "Data shape: ")
 
-    data1 = data
+    #data1 = data
 
-    #if do_augment:
-    #   data1 = tf.py_func(prepare_and_augment, [data], [tf.float32])[0]
-    #else:
-    #   data1 = tf.py_func(just_prepare, [data], [tf.float32])[0]
+    if do_augment:
+       data1 = tf.py_func(prepare_and_augment, [data], [tf.float32])[0]
+    else:
+       data1 = tf.py_func(just_prepare, [data], [tf.float32])[0]
 
 
 #    data1.set_shape((100, 100, 1))
