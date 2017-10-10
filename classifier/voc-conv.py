@@ -401,7 +401,7 @@ def input_data(start_index, amount, shuffle, do_augment):
 
     abs_index_str = tf.as_string(abs_index, width = 9, fill = '0')
 
-    png_file_name = tf.string_join([tf.constant(data_path), tf.constant('data'), abs_index_str, tf.constant('.png')])
+    png_file_name = tf.string_join([tf.constant(data_path), tf.constant('data'), abs_index_str, tf.constant('r.png')])
     csv_file_name = tf.string_join([tf.constant(data_path), tf.constant('data'), abs_index_str, tf.constant('.csv')])
 
 #    if shuffle == False:
