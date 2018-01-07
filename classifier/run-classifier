@@ -1,1 +1,1 @@
-python -u ./voc-conv-classifier.py --summary-file /media/sf_vb-shared/train-25/events.out.tfevents.1492969601.dnp-computing
+python -u ./voc-conv-classifier.py --data-path ./vocs_data4/ --batch-normalization --summary-file /media/sf_vb-shared/train/surr/f20/1/pretrained-f-20.tfevents

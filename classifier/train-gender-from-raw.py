@@ -387,6 +387,8 @@ for i in range(n_classes):
     
     #file_names = zip(data_file_names, label_file_names)
     
+    # the same order everytime
+    
     random.seed(0)
     random.shuffle(file_names)
     #file_names = file_names[0:test_amount + 1]
@@ -424,96 +426,33 @@ def input_data(file_name_prefix, is_test_data, test_chunk_index):
             cv_d = cv_d + cv_d[:data_per_class - len(cv_d)]
         
         cv_data append(cv_d)
-    
-    if is_test_data:
-        data_per_class = test_amount
-    else:
-        data_per_class = train_amount - test_amount
-    
-    range_queue = tf.train.range_input_producer(data_per_class * len(data), shuffle = not is_test_data)
-    
-    abs_index = range_queue.dequeue()
-
-    class_index = tf.div(range_value, tf.constant(data_per_class))
-               
-    label = tf.gather(label_map, class_index)
-    folder = tf.gather(folder_map, class_index)
-    
-    
-#    if shuffle == False:
-#    if shuffle == True
-#    range_value = tf.Print(range_value, [range_value], message = "rv: ")            
-
-                
-    #abs_index = tf.add(range_value, tf.constant(start_index))
-    
-    abs_index_str = tf.as_string(abs_index, width = 9, fill = '0')
-    
-    png_file_name = tf.string_join([tf.constant(data_path), tf.constant(file_name_prefix), abs_index_str, tf.constant('r.png')])
-    csv_file_name = tf.string_join([tf.constant(data_path), tf.constant(file_name_prefix), abs_index_str, tf.constant('.csv')])
-    
-#    if shuffle == False:
-#    png_file_name = tf.Print(png_file_name, [png_file_name], message = "This is file name: ")
-#    csv_file_name = tf.Print(csv_file_name, [csv_file_name], message = "This is file name: ")
-
-
-    #filename_queue = tf.train.string_input_producer([csv_file_name])
-    #filename_queue.enqueue([csv_file_name]);
-    #reader = tf.TextLineReader()
-    
-    #_, csv_data = reader.read(filename_queue)
-    csv_data = tf.read_file(csv_file_name)
-    #csv_data = tf.slice(csv_data, [0], [string_length(csv_data) - 1])
- #   csv_data = tf.Print(csv_data, [csv_data], message = "This is csv_data: ")
-    label_defaults = [[] for x in range(n_classes + 3)]   
-  #  csv_data = tf.Print(csv_data, [csv_data], message = "b4! ")
-    unpacked_labels = tf.decode_csv(csv_data, record_defaults = label_defaults)
-#    png_file_name = tf.Print(png_file_name, [png_file_name], message = "after ")
-#    unpacked_labels = list(reversed(unpacked_labels))
-    unpacked_labels.pop()
-    unpacked_labels.pop()
-    unpacked_labels.pop()
-
-    #unpacked_labels[4] = tf.constant(1, dtype = tf.float32);
-    #unpacked_labels[5] = tf.constant(1, dtype = tf.float32);
-    
-    #random = tf.mod(abs_index, tf.constant(2))  
-    #random = tf.cast(random, tf.float32)
-    #unpacked_labels = []
-    #unpacked_labels.append(random)
-
-    labels = tf.stack(unpacked_labels)
-    #labels = tf.Print(labels, [labels], message = "These are labels: ")  
-#    print(labels.get_shape())
         
-    png_data = tf.read_file(png_file_name)    
+    cv_data = tf.constant(cv_data)    
+    
+    range_queue = tf.train.range_input_producer(data_per_class * len(data) * 2, shuffle = True)
+    
+    class_value = range_queue.dequeue()
+    file_value = range_queue.dequeue()
+
+    class_index = tf.mod(class_value, tf.constant(data_per_class))
+    
+    filenames = tf.gather(cv_data, class_index)
+    amount = tf.gather(filename.get_shape(), tf.constant(0))
+    
+    file_index = tf.mod(file_value, amount)
+    
+    file = filenames.gather(filenames)
+            
+    png_file_name = file
+    
+    labels = tf.expand_dims(class_index)
     
     data = tf.image.decode_png(png_data)
-
-    #data_shape = tf.shape(data);
-    #data = tf.Print(data, [data_shape], message = "Data shape: ")
-
 
     if do_augment:
        data1 = tf.py_func(prepare_and_augment, [data], [tf.float32])[0]
     else:
-       data1 = tf.py_func(just_prepare, [data], [tf.float32])[0]
-
-
-#    data1.set_shape((100, 100, 1))
-
-
-    #data_shape = tf.shape(data1);
-    #png_data = tf.Print(png_data, [data_shape], message = "This is data1 shape: ")
-
-    #data1 = tf.image.decode_png(png_data)
-
-    #data1 = tf.convert_to_tensor(data1, dtype = tf.float32)
-
-    #data = tf.image.rgb_to_grayscale(data)
-
-    #data1 = tf.image.resize_images(data1, [image_height, image_width])
-    
+       data1 = tf.py_func(just_prepare, [data], [tf.float32])[0]    
     
     data1 = tf.reshape(data1, [-1])
     data1 = tf.to_float(data1)
