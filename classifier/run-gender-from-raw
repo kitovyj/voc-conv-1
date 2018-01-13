@@ -1,0 +1,1 @@
+python3 -u ./train-gender-from-raw.py --epochs 30 --kernel-sizes 10 5 3 3 --features 256 256 256 256 --max-pooling 1 1 1 1 --strides 2 2 1 1 --fc-num 2 --fc-sizes 25 25 --dropout 0.0 --regularization 0.0000 --learning-rate 0.001 --batch-normalization --summary-records 100
