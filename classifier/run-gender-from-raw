@@ -1,6 +1,6 @@
 EPOCHS0=30
 EPOCHS1=20
-SR=200
+SR=100
 
 mkdir train
 mkdir train/cv

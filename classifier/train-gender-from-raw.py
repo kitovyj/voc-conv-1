@@ -444,7 +444,7 @@ def input_data(is_test_data, test_chunk_index, test_class = 0):
             if len(cv_d) < data_per_class:
                 cv_d = cv_d + ["padding"] * (data_per_class - len(cv_d))
                      
-            #print('dumped:', cv_d)
+            print('train data:', cv_d)
             #print(len(cv_d))
                 
             cv_data.append(cv_d)
@@ -484,6 +484,8 @@ def input_data(is_test_data, test_chunk_index, test_class = 0):
         print('test amount:', test_amount)                
 
         cv_data = d[int(test_chunk_index * test_amount):int((test_chunk_index + 1) * test_amount)]
+
+        print('test data:', cv_data)
 
         data_len = len(cv_data)        
         cv_data = tf.constant(np.asarray(cv_data))    
@@ -802,7 +804,7 @@ def calc_test_accuracy():
                     
                     x, y = test_sess.run([x1_batch, y1_batch])
                     
-                    #print('batch size:', len(y))
+                    print('batch size:', len(y))
                     
                     p = sess.run(pred, feed_dict = { dropout_ph: 0.0, is_training_ph: False, x_batch_ph: x } )
                     acc = sess.run(accuracy, feed_dict = { pred_batch_ph : p, y_batch_ph : y } )                       
