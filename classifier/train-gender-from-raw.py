@@ -12,6 +12,7 @@ import math
 import string
 import model_persistency
 import glob
+import traceback
 
 parser = argparse.ArgumentParser()
 
@@ -773,47 +774,53 @@ def calc_test_accuracy():
     test_batches = []
     
     with test_sess.as_default():
-        for n in range(n_classes):    
-            x1_batch, y1_batch, test_amount = test_input(n)       
-            test_batches.append((x1_batch, y1_batch, test_amount))
-    
-    test_init = tf.group(tf.global_variables_initializer(), tf.local_variables_initializer())
 
-    test_sess.run(test_init)
+        try:
     
-    test_coord = tf.train.Coordinator()
+            for n in range(n_classes):    
+                x1_batch, y1_batch, test_amount = test_input(n)       
+                test_batches.append((x1_batch, y1_batch, test_amount))
+        
+            test_init = tf.group(tf.global_variables_initializer(), tf.local_variables_initializer())
 
-    tf.train.start_queue_runners(sess = test_sess, coord = test_coord)
-    
-    for n in range(n_classes):
-    
-        x1_batch, y1_batch, test_amount = test_batches[n]
-        
-        #print("test amount:", test_amount)
-        
-        batch_number = int((test_amount + eval_batch_size - 1) / eval_batch_size)
-        
-        acc_sum = 0.0
-        for i in range(batch_number):
+            test_sess.run(test_init)
             
-            x, y = test_sess.run([x1_batch, y1_batch])
-            
-            #print('batch size:', len(y))
-            
-            p = sess.run(pred, feed_dict = { dropout_ph: 0.0, is_training_ph: False, x_batch_ph: x } )
-            acc = sess.run(accuracy, feed_dict = { pred_batch_ph : p, y_batch_ph : y } )                       
-            acc_sum = acc_sum + acc * len(y)
-            
-        class_accuracies[n] = acc_sum / test_amount
-        
-        print(class_accuracies[n])
+            test_coord = tf.train.Coordinator()
 
-    test_coord.request_stop()
-    test_coord.join()
+            tf.train.start_queue_runners(sess = test_sess, coord = test_coord)
+            
+            for n in range(n_classes):
+            
+                x1_batch, y1_batch, test_amount = test_batches[n]
+                
+                #print("test amount:", test_amount)
+                
+                batch_number = int((test_amount + eval_batch_size - 1) / eval_batch_size)
+                
+                acc_sum = 0.0
+                for i in range(batch_number):
+                    
+                    x, y = test_sess.run([x1_batch, y1_batch])
+                    
+                    #print('batch size:', len(y))
+                    
+                    p = sess.run(pred, feed_dict = { dropout_ph: 0.0, is_training_ph: False, x_batch_ph: x } )
+                    acc = sess.run(accuracy, feed_dict = { pred_batch_ph : p, y_batch_ph : y } )                       
+                    acc_sum = acc_sum + acc * len(y)
+                    
+                class_accuracies[n] = acc_sum / test_amount
+                
+                print(class_accuracies[n])
 
-    test_sess.close()
-    
-    accuracy_value = np.mean(class_accuracies)
+            test_coord.request_stop()
+            test_coord.join()
+
+            test_sess.close()
+        except Exception as e:
+            
+            print('exception in calc_test_acuracy:', traceback.print_exc(file = sys.stdout))
+            
+        accuracy_value = np.mean(class_accuracies)
 
 
 def calc_train_accuracy(pred, y):
