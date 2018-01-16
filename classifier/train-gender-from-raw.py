@@ -418,45 +418,61 @@ for i in range(n_classes):
 
 cross_validation_chunks = 10
 test_amount = 0
- 
+
+max_train_amount = len(max(train_data, key = len))        
+#max_test_amount = int(max_train_amount / cross_validation_chunks)
+
+    
+print('processing train input')
+data_per_class = max_train_amount 
+print('data per class:', data_per_class)        
+
+train_cv_data = []
+train_cv_data_lengths = []
+for d in train_data:
+    test_amount = int(len(d) / cross_validation_chunks) 
+    cv_d = d[:int(args.test_chunk * test_amount)] + d[int((args.test_chunk + 1) * test_amount):]
+
+    train_cv_data_lengths.append(len(cv_d))        
+        
+    if len(cv_d) < data_per_class:
+        cv_d = cv_d + ["padding"] * (data_per_class - len(cv_d))
+             
+    print('train data:', cv_d)
+    #print(len(cv_d))
+        
+    train_cv_data.append(cv_d)    
+
+   
+test_cv_data = []
+   
+for d in train_data:    
+
+    test_amount = int(len(d) / cross_validation_chunks) 
+
+    print('test amount:', test_amount)                
+    
+    cv_data = d[int(args.test_chunk * test_amount):int((args.test_chunk + 1) * test_amount)]
+    test_cv_data.append(cv_data)
+    
+    
 # input generator
 def input_data(is_test_data, test_chunk_index, test_class = 0):
     
-    global train_data, test_amount
-
-    max_train_amount = len(max(train_data, key = len))        
-    #max_test_amount = int(max_train_amount / cross_validation_chunks)
+    global test_cv_data, train_cv_data, train_cv_data_lengths, max_train_amount
     
     if not is_test_data:
     
         print('processing train input')
-        data_per_class = max_train_amount 
-        print('data per class:', data_per_class)        
-
-        cv_data = []
-        cv_data_lengths = []
-        for d in train_data:
-            test_amount = int(len(d) / cross_validation_chunks) 
-            cv_d = d[:int(test_chunk_index * test_amount)] + d[int((test_chunk_index + 1) * test_amount):]
-
-            cv_data_lengths.append(len(cv_d))        
-                
-            if len(cv_d) < data_per_class:
-                cv_d = cv_d + ["padding"] * (data_per_class - len(cv_d))
-                     
-            print('train data:', cv_d)
-            #print(len(cv_d))
-                
-            cv_data.append(cv_d)
             
-        print(np.asarray(cv_data).shape)
+        print(np.asarray(train_cv_data).shape)
             
-        data_len = len(cv_data)        
-        cv_data = tf.constant(np.asarray(cv_data))    
+        data_len = len(train_cv_data)        
+        cv_data = tf.constant(np.asarray(train_cv_data))    
             
-        cv_data_lengths = tf.constant(np.asarray(cv_data_lengths), dtype = tf.int32)    
+        cv_data_lengths = tf.constant(np.asarray(train_cv_data_lengths), dtype = tf.int32)    
     
-        range_queue = tf.train.range_input_producer(data_per_class * len(train_data) * 2, shuffle = True)
+        range_queue = tf.train.range_input_producer(max_train_amount * len(train_cv_data) * 2, shuffle = False)
     
         class_value = range_queue.dequeue()
         file_value = range_queue.dequeue()
@@ -477,13 +493,7 @@ def input_data(is_test_data, test_chunk_index, test_class = 0):
 
     else:
     
-        print('processing test input')
-        d = train_data[test_class]
-        test_amount = int(len(d) / cross_validation_chunks) 
-
-        print('test amount:', test_amount)                
-
-        cv_data = d[int(test_chunk_index * test_amount):int((test_chunk_index + 1) * test_amount)]
+        cv_data = test_cv_data[test_class]
 
         print('test data:', cv_data)
 
