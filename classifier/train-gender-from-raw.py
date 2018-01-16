@@ -453,6 +453,9 @@ for d in train_data:
     print('test amount:', test_amount)                
     
     cv_data = d[int(args.test_chunk * test_amount):int((args.test_chunk + 1) * test_amount)]
+    
+    print('test data:', cv_data)
+    
     test_cv_data.append(cv_data)
     
     
@@ -494,8 +497,6 @@ def input_data(is_test_data, test_chunk_index, test_class = 0):
     else:
     
         cv_data = test_cv_data[test_class]
-
-        print('test data:', cv_data)
 
         data_len = len(cv_data)        
         cv_data = tf.constant(np.asarray(cv_data))    
