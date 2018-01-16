@@ -475,22 +475,21 @@ def input_data(is_test_data, test_chunk_index, test_class = 0):
             
         cv_data_lengths = tf.constant(np.asarray(train_cv_data_lengths), dtype = tf.int32)    
     
-        range_queue = tf.train.range_input_producer(max_train_amount * len(train_cv_data) * 2, shuffle = False)
+        range_queue = tf.train.range_input_producer(max_train_amount * n_classes, shuffle = True)
     
-        class_value = range_queue.dequeue()
-        file_value = range_queue.dequeue()
+        value = range_queue.dequeue()
     
         #class_value = tf.Print(class_value, [class_value], message = "class value: ")
         #file_value = tf.Print(file_value, [file_value], message = "file value: ")
 
-        class_index = tf.mod(class_value, tf.constant(n_classes))
+        class_index = tf.div(value, tf.constant(max_train_amount))
 
         #class_index = tf.Print(class_index, [class_index], message = "class index: ")
     
         filenames = tf.gather(cv_data, class_index)
         amount = tf.gather(cv_data_lengths, class_index)
     
-        file_index = tf.mod(file_value, amount)
+        file_index = tf.mod(value, amount)
     
         file = tf.gather(filenames, file_index)
 
