@@ -1,19 +1,27 @@
-function [female, male, overall] = analyze_raw_input(method)
+function [female, male, overall] = analyze_raw_input(data,responses,varargin)
+
+P = parsePairs(varargin);
+checkField(P,'Method','Ridge');
+checkField(P,'Balance',0);
+checkField(P,'Reduce',4);
+
 
     female = [];
     male = [];
     overall = [];
-
-    % method = "SVM";
     
-    load('statistics_unbalanced_new.mat');
+    if P.Reduce; data = data(P.Reduce:P.Reduce:end,:);     end
     
-    data = raw_100;
-    
-    %{
-    data = data(:, 1:100);
-    responses = responses(1:100);
-    %}
+    if P.Balance
+      N1 = sum(responses==1);
+      Ind0 = find(responses==0);
+      Ind1 = find(responses==1);
+      Ind0 = Ind0(1:N1);
+      IndSel = [Ind0;Ind1];
+      IndSel = IndSel(randperm(length(IndSel)));
+      data = data(:, IndSel);
+      responses = responses(IndSel);
+    end
     
     % SVMModel = fitcsvm(X,Y,'KernelFunction','rbf','Standardize',true,'ClassNames', {'negClass', 'posClass'});
     
@@ -22,9 +30,8 @@ function [female, male, overall] = analyze_raw_input(method)
     predictors_size = size(data, 2) - test_size;
     
     responses = double(responses);
-    
-    
-    [Model, Residuals, yPred, indices] = regressCV(responses, data(:, 1:predictors_size)', 'Method', method);
+       
+    [Model, Residuals, yPred, indices] = regressCV(responses, data(:, 1:predictors_size)', 'Method', P.Method);
     
     yy = yPred;
     yy(yy < 0.5) = 0;

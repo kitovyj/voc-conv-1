@@ -4,7 +4,7 @@ P = parsePairs(varargin);
 checkField(P,'NCV',10);
 checkField(P,'Method','Linear');
 checkField(P,'Constant',1);
-checkField(P,'Lambda',1);
+checkField(P,'Lambda',0.001);
 
 Indices = {};
 
@@ -25,12 +25,14 @@ for iCV = 1:length(Bounds)-1
   cIndTest = [Bounds(iCV)+1 : Bounds(iCV+1)];
   cIndTrain = setdiff([1:NSamples],cIndTest);
   
-  % ESTIMATE 
+  % ESTIMATE
   switch P.Method
-    case 'Ridge';
-      Model.b(iCV,:) = ridge(y(cIndTrain),X(cIndTrain,:), P.Lambda);
     case 'Linear';
       Model.b(iCV,:) = regress(y(cIndTrain),X(cIndTrain,:));
+    case 'Ridge';
+      %  Model.b(iCV,:) = ridge(y(cIndTrain),X(cIndTrain,:), P.Lambda);
+      RR = X(cIndTrain,:)'*X(cIndTrain,:);  RS = X(cIndTrain,:)'*y(cIndTrain);
+      Model.b(iCV,:) = inv(RR + P.Lambda*eye(size(RR)))*RS;
     case 'SVM';
       % options.MaxIter = Inf;        
       % Model.SVM(iCV)= svmtrain(X(cIndTrain,:),y(cIndTrain), 'Options', options);
