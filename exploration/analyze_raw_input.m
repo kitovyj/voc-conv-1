@@ -1,39 +1,76 @@
-function analyze_raw_input()
+function [female, male, overall] = analyze_raw_input(method)
 
-    load('statistics.mat');
+    female = [];
+    male = [];
+    overall = [];
 
-    % linear model
+    % method = "SVM";
     
-    data = raw;
+    load('statistics_unbalanced_new.mat');
     
-    test_size = 500;
+    data = raw_100;
+    
+    %{
+    data = data(:, 1:100);
+    responses = responses(1:100);
+    %}
+    
+    % SVMModel = fitcsvm(X,Y,'KernelFunction','rbf','Standardize',true,'ClassNames', {'negClass', 'posClass'});
+    
+    %test_size = 500;
+    test_size = 0;
     predictors_size = size(data, 2) - test_size;
-    predictors_matrix = [ data(:, 1:predictors_size); ones(1, predictors_size) ]';
-    
-    % responses = [ repmat(0, 1, predictors_size) repmat(1, 1, predictors_size) ]';
-    % responses = [ repmat(0, 1, predictors_size) ]';
     
     responses = double(responses);
     
-    b = regress(responses(1:predictors_size), predictors_matrix);
     
-    %{
-    xx = linspace(0, 0.4, 100);
-    yy = b(2)+ b(1).*xx;
-
-    plot(xx, yy, 'r', durations{1}, repmat(0, 1, predictors_size), 'go', durations{2}, repmat(1, 1, predictors_size), 'bo');
+    [Model, Residuals, yPred, indices] = regressCV(responses, data(:, 1:predictors_size)', 'Method', method);
     
-    grid on
-    %}
-    
-    test_matrix = [ data(:, predictors_size + 1:end); ones(1, test_size) ]';
-    
-    yy = (test_matrix * b)';
+    yy = yPred;
     yy(yy < 0.5) = 0;
     yy(yy >= 0.5) = 1;
-    correct = (yy == (responses(predictors_size + 1:end)'));
-    accuracy = mean(correct);
-    
-    fprintf('accuracy : %f\n', accuracy);
+       
+    %correct = (yy == (responses(predictors_size + 1:end)'));
+        
+    female_indices = find(responses == 0);
+    male_indices = find(responses == 1);
+       
+    correct = (yy(female_indices) == responses(female_indices)');    
+    accuracy_female = mean(correct);
 
+    correct = (yy(male_indices) == responses(male_indices)');    
+    accuracy_male = mean(correct);
+
+    accuracy = mean([accuracy_male, accuracy_female]);
+
+    fprintf('accuracy(female): %f\n', accuracy_female);    
+    fprintf('accuracy(male) : %f\n', accuracy_male);    
+    fprintf('accuracy(overall) : %f\n', accuracy);
+    
+    for k = 1:length(indices)
+
+        i = indices{k};
+        y = yy(i);
+        r = responses(i);
+        
+        female_indices = find(r == 0);
+        male_indices = find(r == 1);
+
+        correct = (y(female_indices) == r(female_indices)');    
+        accuracy_female = mean(correct);
+
+        correct = (y(male_indices) == r(male_indices)');    
+        accuracy_male = mean(correct);
+
+        accuracy = mean([accuracy_male, accuracy_female]);
+
+        female = [female accuracy_female];
+        male = [male accuracy_male];
+        overall = [overall accuracy];
+        
+        fprintf('accuracy(female %d): %f\n', k, accuracy_female);    
+        fprintf('accuracy(male %d) : %f\n', k, accuracy_male);    
+        fprintf('accuracy(overall %d) : %f\n', k, accuracy);
+        
+    end
     

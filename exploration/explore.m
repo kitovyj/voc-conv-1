@@ -1,6 +1,6 @@
 function explore()
 
-    data_path = '..\collector\data\';
+    data_path = '..\collector\data_unbalanced_new\';
         
     source_files = strcat(data_path, '*.mat');
 
@@ -96,7 +96,7 @@ function explore()
         
     end
     
-    save('statistics.mat', 'total_classes', 'frequencies', 'durations', 'loudnesses', 'raw', 'responses', 'raw_100');
+    save('statistics_unbalanced_new.mat', 'total_classes', 'frequencies', 'durations', 'loudnesses', 'raw', 'responses', 'raw_100');
     
     fprintf('\n');
 

@@ -1,6 +1,6 @@
 function analyze()
 
-    load('statistics.mat');
+    load('statistics_unbalanced_new.mat');
 
     avg_durations = [0, 0];
     avg_freq = [0, 0];
