@@ -142,6 +142,7 @@ def conv_net(x, weights, biases, normalization_data, dropout, is_training, out_n
         conv = tf.nn.conv2d(conv, weights['wc'][i], strides = [1, strides[i], strides[i], 1], padding = 'SAME')
         
         if batch_normalization:
+        
             layer_name = random_string()
 
             if len(normalization_data['nc']) > i:            
@@ -348,17 +349,20 @@ if summary_file is None:
 
 
 if summary_file is not None:
-   weights, biases, normalization_data, kernel_sizes, features, strides, max_pooling, fc_sizes = model_persistency.load_summary_file(summary_file)
+   
+   weights, biases, normalization_data, kernel_sizes, features, strides, max_pooling, fc_sizes, weights_copy, biases_copy = model_persistency.load_summary_file(summary_file)
    hidden_layers_n = len(weights['wd'])
    conv_layers_n = len(weights['wc'])
+   
+else:
 
-for i in range(hidden_layers_n):
-  weights_copy['wd'].append(tf.Variable(weights['wd'][i].initialized_value()))
+   for i in range(hidden_layers_n):
+      weights_copy['wd'].append(tf.Variable(weights['wd'][i].initialized_value()))
 
-for i in range(conv_layers_n):
-  weights_copy['wc'].append(tf.Variable(weights['wc'][i].initialized_value()))
+   for i in range(conv_layers_n):
+      weights_copy['wc'].append(tf.Variable(weights['wc'][i].initialized_value()))
 
-weights_copy['out'] = tf.Variable(weights['out'].initialized_value())
+   weights_copy['out'] = tf.Variable(weights['out'].initialized_value())
 
 def euclidean_norm(a):
     return tf.sqrt(tf.reduce_sum(tf.square(a)))
@@ -370,6 +374,10 @@ def weights_change(a, b):
     distance = euclidean_norm(tf.subtract(normalize(a), normalize(b)))
     return distance
 
+def weights_change_absolute(a, b):
+    distance = euclidean_norm(tf.subtract(a, b))
+    return distance
+    
 def weights_change_summary():
     l = []
 
@@ -383,6 +391,19 @@ def weights_change_summary():
 
     out = weights_change(weights['out'], weights_copy['out'])
     l.append(tf.summary.scalar('out', out))
+
+    # absolute
+    for i in range(conv_layers_n):
+        wca = weights_change_absolute(weights['wc'][i], weights_copy['wc'][i])
+        l.append(tf.summary.scalar('wca' + str(i + 1), wca))
+
+    for i in range(hidden_layers_n):
+        wda = weights_change_absolute(weights['wd'][i], weights_copy['wd'][i])
+        l.append(tf.summary.scalar('wda' + str(i + 1), wda))
+
+    out_a = weights_change_absolute(weights['out'], weights_copy['out'])
+    l.append(tf.summary.scalar('out_a', out_a))
+
     return tf.summary.merge(l)
 
 def just_prepare(gray8):
@@ -692,11 +713,6 @@ if len(kernel_sizes) > 0:
 
 const_summary = tf.summary.merge(const_summaries)
 
-
-#_, summary = sess.run([optimizer, wc1_summary], feed_dict = {keep_prob: dropout} )
-# _ = sess.run([optimizer], feed_dict = {keep_prob: dropout} )
-# print((i * 100) / iterations, "% done" )
-
 train_summaries = []
 
 train_summaries.append(weights_change_summary())
@@ -914,7 +930,7 @@ print("saving weights...")
 
 weights_summaries = []
 
-model_persistency.save_weights_to_summary(weights_summaries, weights, biases, normalization_data)
+model_persistency.save_weights_to_summary(weights_summaries, weights, biases, normalization_data, weights_copy, biases)
 
 weights_summary = tf.summary.merge(weights_summaries)
 

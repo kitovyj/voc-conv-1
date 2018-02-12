@@ -25,11 +25,50 @@ def tensor_summary_value_to_variable(value):
     #w = tf.Variable.from_proto(v)
     var = tf.Variable(fb)
     return var
+
+def match_weights(v, weights, biases, postfix):
+
+    matched = True
+
+    if v.node_name == 'out-weights' + postfix:
+       w = tensor_summary_value_to_variable(v)
+       weights['out'] = w
+    elif v.node_name == 'out-biases' + postfix:
+       b = tensor_summary_value_to_variable(v)
+       biases['out'] = b
+    elif re.match('c[0-9]+-weights' + postfix, v.node_name) :
+       split = v.node_name.split('-')
+       num = int(split[0][1:])
+       print("loading convolutional layer " + str(num) + " weights")
+       w = tensor_summary_value_to_variable(v)
+       weights['wc'][num - 1] = w
+    elif re.match('c[0-9]+-biases' + postfix, v.node_name) :
+       split = v.node_name.split('-')
+       num = int(split[0][1:])
+       b = tensor_summary_value_to_variable(v)
+       biases['bc'][num - 1] = b
+    elif re.match('f[0-9]+-weights' + postfix, v.node_name) :
+       split = v.node_name.split('-')
+       num = int(split[0][1:])
+       print("loading fully connected layer " + str(num) + " weights")
+       w = tensor_summary_value_to_variable(v)
+       weights['wd'][num - 1] = w
+    elif re.match('f[0-9]+-biases' + postfix, v.node_name) :
+       split = v.node_name.split('-')
+       num = int(split[0][1:])
+       b = tensor_summary_value_to_variable(v)
+       biases['bd'][num - 1] = b
+    else:
+       matched = False
+        
+    return matched    
     
 def load_summary_file(summary_file):
 
    biases = { 'bc': [], 'bd': [], 'out': None }
    weights = { 'wc': [], 'wd': [], 'out': None }
+   original_biases = { 'bc': [], 'bd': [], 'out': None }
+   original_weights = { 'wc': [], 'wd': [], 'out': None }
    normalization_data = { 'nc': [], 'nd': [] }
 
    ge = tf.train.summary_iterator(summary_file)
@@ -60,6 +99,8 @@ def load_summary_file(summary_file):
                 
                 weights['wd'] = [None] * hidden_layers_n
                 biases['bd'] = [None] * hidden_layers_n
+                original_weights['wd'] = [None] * hidden_layers_n
+                original_biases['bd'] = [None] * hidden_layers_n
 
                 for i in range(hidden_layers_n):
                     normalization_data['nd'].append([None, None, None, None])
@@ -77,7 +118,8 @@ def load_summary_file(summary_file):
                 max_pooling = [None] * conv_layers_n
                 weights['wc'] = [None] * conv_layers_n
                 biases['bc'] = [None] * conv_layers_n
-
+                original_weights['wc'] = [None] * conv_layers_n
+                original_biases['bc'] = [None] * conv_layers_n
                 for i in range(conv_layers_n):
                     normalization_data['nc'].append([None, None, None, None])
 
@@ -103,34 +145,14 @@ def load_summary_file(summary_file):
 
            elif v.node_name is not None:
 
-                if v.node_name == 'out-weights':
-                   w = tensor_summary_value_to_variable(v)
-                   weights['out'] = w
-                elif v.node_name == 'out-biases':
-                   b = tensor_summary_value_to_variable(v)
-                   biases['out'] = b
-                elif re.match('c[0-9]+-weights', v.node_name) :
-                   split = v.node_name.split('-')
-                   num = int(split[0][1:])
-                   print("loading convolutional layer " + str(num) + " weights")
-                   w = tensor_summary_value_to_variable(v)
-                   weights['wc'][num - 1] = w
-                elif re.match('c[0-9]+-biases', v.node_name) :
-                   split = v.node_name.split('-')
-                   num = int(split[0][1:])
-                   b = tensor_summary_value_to_variable(v)
-                   biases['bc'][num - 1] = b
-                elif re.match('f[0-9]+-weights', v.node_name) :
-                   split = v.node_name.split('-')
-                   num = int(split[0][1:])
-                   print("loading fully connected layer " + str(num) + " weights")
-                   w = tensor_summary_value_to_variable(v)
-                   weights['wd'][num - 1] = w
-                elif re.match('f[0-9]+-biases', v.node_name) :
-                   split = v.node_name.split('-')
-                   num = int(split[0][1:])
-                   b = tensor_summary_value_to_variable(v)
-                   biases['bd'][num - 1] = b
+                if match_weights(v, original_weights, original_biases, "-original"):
+                    
+                    foo = True
+                    
+                elif match_weights(v, weights, biases, ""):
+                    
+                    foo = True
+                    
                 elif re.match('nc[0-9]+-mean', v.node_name) :
                    split = v.node_name.split('-')
                    num = int(split[0][2:])
@@ -187,26 +209,39 @@ def load_summary_file(summary_file):
    e = None
    ge = None
 
-   return weights, biases, normalization_data, kernel_sizes, features, strides, max_pooling, fc_sizes
+   return weights, biases, normalization_data, kernel_sizes, features, strides, max_pooling, fc_sizes, original_weights, original_biases
 
 
-def save_weights_to_summary(weights_summaries, weights, biases, normalization_data):
+def save_weights(weights, biases, postfix):
+    
+    weights_summaries = []
 
     for i in range(len(weights['wc'])):
-        wname = 'c' + str(i + 1) + '-weights'
-        bname = 'c' + str(i + 1) + '-biases'
+        wname = 'c' + str(i + 1) + '-weights' + postfix;
+        bname = 'c' + str(i + 1) + '-biases' + postfix;
         weights_summaries.append(tf.summary.tensor_summary(wname, weights['wc'][i]))
         weights_summaries.append(tf.summary.tensor_summary(bname, biases['bc'][i]))
 
     for i in range(len(weights['wd'])):
-        wname = 'f' + str(i + 1) + '-weights'
-        bname = 'f' + str(i + 1) + '-biases'
+        wname = 'f' + str(i + 1) + '-weights' + postfix;
+        bname = 'f' + str(i + 1) + '-biases' + postfix;
         weights_summaries.append(tf.summary.tensor_summary(wname, weights['wd'][i]))
         weights_summaries.append(tf.summary.tensor_summary(bname, biases['bd'][i]))
 
-    weights_summaries.append(tf.summary.tensor_summary('out-weights', weights['out']))
-    weights_summaries.append(tf.summary.tensor_summary('out-biases', biases['out']))
+    weights_summaries.append(tf.summary.tensor_summary('out-weights' + postfix, weights['out']))
+    weights_summaries.append(tf.summary.tensor_summary('out-biases' + postfix, biases['out']))
 
+    return weights_summaries
+   
+   
+def save_weights_to_summary(weights_summaries, weights, biases, normalization_data, original_weights, original_biases):
+
+    ws = save_weights(weights, biases, "")
+    ows = save_weights(original_weights, original_biases, "-original")
+
+    weights_summaries.extend(ws)    
+    weights_summaries.extend(ows)
+    
     for i in range(len(normalization_data['nc'])):
         mname = 'nc' + str(i + 1) + '-mean'
         vname = 'nc' + str(i + 1) + '-var'
