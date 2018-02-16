@@ -32,9 +32,11 @@ parser.add_argument('--test-data-path', dest = 'test_data_path', default = None,
 parser.add_argument('--test-amount', dest = 'test_amount', type = int, default = 250, help = 'number of test samples')
 parser.add_argument('--summary-file', dest = 'summary_file', default = None, help = 'the summary file where the trained weights and network parameters are stored')
 parser.add_argument('--regularization', dest = 'regularization_coeff', type = float, default = 100*5E-4, help = 'fully connected layers weights regularization')
-parser.add_argument('--batch-normalization', action='store_true', dest='batch_normalization', help = 'if \'batch normalization\' is enabled')
-parser.add_argument('--summary-records', dest='summary_records', type = int, default = 500, help = 'how much summary records should be written')
-parser.add_argument('--test-chunk', dest='test_chunk', type = int, default = 0, help = 'the test chunk for cross validation')
+parser.add_argument('--batch-normalization', action = 'store_true', dest='batch_normalization', help = 'if \'batch normalization\' is enabled')
+parser.add_argument('--summary-records', dest = 'summary_records', type = int, default = 500, help = 'how much summary records should be written')
+parser.add_argument('--test-chunk', dest = 'test_chunk', type = int, default = 0, help = 'the test chunk for cross validation')
+parser.add_argument('--shuffled', action = 'store_true', dest='shuffled', help = 'shuffle labels')
+
 
 args = parser.parse_args()
 
@@ -437,6 +439,23 @@ for i in range(n_classes):
     
     train_data.append(data_file_names)
 
+if args.shuffled:
+    all_files = []
+    for i in range(n_classes):
+        all_files.extend(train_data[i])
+    random.seed(0)
+    random.shuffle(all_files)
+    train_data = []
+    
+    index = 0
+    per_class = int(len(all_files) / n_classes)
+    for i in range(n_classes):    
+        last_index = index + per_class
+        if i == n_classes - 1:
+            last_index = len(all_files)
+        train_data.append(all_files[index:last_index]) 
+        index = last_index
+    
 cross_validation_chunks = 10
 test_amount = 0
 

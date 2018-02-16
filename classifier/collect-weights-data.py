@@ -16,7 +16,7 @@ parser = argparse.ArgumentParser()
 
 parser.add_argument('--summary-file', dest = 'summary_file', default = './train/cv-merged/0/2/pretrained-1.tfevents', help = 'the summary file` folder to get the data from')
 parser.add_argument('--feature', dest = 'feature', type = int, default = 0, help = 'feature number')
-parser.add_argument('--initial', action='store_true', dest='take_initial', help='if we have to store initial weights values')
+parser.add_argument('--initial', action='store_true', dest='take_initial', help = 'if we have to store initial weights values')
 
 args = parser.parse_args()
 
