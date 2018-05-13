@@ -71,6 +71,11 @@ def load_summary_file(summary_file):
    original_weights = { 'wc': [], 'wd': [], 'out': None }
    normalization_data = { 'nc': [], 'nd': [] }
 
+   kernel_sizes = []
+   features = []
+   strides = []
+   max_pooling = []
+   
    ge = tf.train.summary_iterator(summary_file)
 
    for e in ge:

@@ -5,7 +5,7 @@ SET SR=100
 MKDIR train
 MKDIR train\cv
 
-FOR /L %%C IN (0,1,0) DO (
+FOR /L %%C IN (0,1,9) DO (
 
     MKDIR train\cv\%%C
 

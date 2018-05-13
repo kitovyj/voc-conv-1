@@ -3,7 +3,6 @@ import numpy as np
 import argparse
 import time
 import re
-import augment
 import scipy.misc
 import random
 import tensorflow as tf
@@ -16,10 +15,6 @@ import traceback
 
 parser = argparse.ArgumentParser()
 
-parser.add_argument('--kernel-sizes', dest = 'kernel_sizes', type = int, nargs = '+', default = [], help = 'convolutional layers kernel sizes')
-parser.add_argument('--features', dest = 'features', type = int, nargs = '+', default = [], help = 'convolutional layers features')
-parser.add_argument('--strides', dest = 'strides', type = int, nargs = '+', default = [1, 1], help = 'convolutional layers strides')
-parser.add_argument('--max-pooling', dest = 'max_pooling', type = int, nargs = '+', default = [], help = 'convolutional layers max pooling')
 parser.add_argument('--fc-sizes', dest = 'fc_sizes', type = int, nargs = '+', default = 1024, help = 'fully connected layer size')
 parser.add_argument('--fc-num', dest = 'fc_num', type = int, default = 1, help = 'fully connected layers number')
 parser.add_argument('--learning-rate', dest = 'learning_rate', type = float, default = 0.0001, help = 'learning rate')
@@ -36,29 +31,15 @@ parser.add_argument('--batch-normalization', action = 'store_true', dest='batch_
 parser.add_argument('--summary-records', dest = 'summary_records', type = int, default = 500, help = 'how much summary records should be written')
 parser.add_argument('--test-chunk', dest = 'test_chunk', type = int, default = 0, help = 'the test chunk for cross validation')
 parser.add_argument('--shuffled', action = 'store_true', dest='shuffled', help = 'shuffle labels')
-parser.add_argument('--classify', action = 'store_true', dest='classify', help = 'just classify')
+
 
 args = parser.parse_args()
 
-kernel_sizes = args.kernel_sizes
-features = args.features
-strides = args.strides
-max_pooling = args.max_pooling
 fc_sizes = args.fc_sizes
 
 if not isinstance(fc_sizes, list):
    fc_sizes = [fc_sizes]
 
-if not isinstance(kernel_sizes, list):
-   kernel_sizes = [kernel_sizes]
-
-if not isinstance(strides, list):
-   max_pooling = [max_pooling]
-
-if not isinstance(max_pooling, list):
-   max_pooling = [max_pooling]
-
-conv_layers_n = len(kernel_sizes)
 hidden_layers_n = args.fc_num
 initial_weights_seed = args.initial_weights_seed
 
@@ -77,14 +58,8 @@ regularization_coeff = args.regularization_coeff
 batch_normalization = args.batch_normalization
 summary_records = args.summary_records
 
-#image_width = 128
-#image_height = 128
-
-image_width = 100
-image_height = 100
-
 # Network Parameters
-n_input = image_width * image_height
+n_input = 9
 n_classes = 2 # Mtotal classes
 
 batch_size = 64
@@ -119,80 +94,12 @@ def random_string(length = 10):
     letters = string.ascii_lowercase
     return ''.join(random.choice(letters) for i in range(length))
 
-# Create some wrappers for simplicity
-
-def maxpool2d(x, k = 2):
-    # MaxPool2D wrapper
-    return tf.nn.max_pool(x, ksize=[1, k, k, 1], strides=[1, k, k, 1],
-                          padding='SAME')
-
 # Create model
 def conv_net(x, weights, biases, normalization_data, dropout, is_training, out_name = None):
-    # Reshape input picture
-    x = tf.reshape(x, shape = [-1, image_width, image_height, 1])
-
-    conv = x
-
-    for i in range(conv_layers_n):
-        
-        ks = kernel_sizes[i]
-        fs = features[i]
-        mp = max_pooling[i]        
-
-        # Convolution Layer
-        
-        conv = tf.nn.conv2d(conv, weights['wc'][i], strides = [1, strides[i], strides[i], 1], padding = 'SAME')
-        
-        if batch_normalization:
-        
-            layer_name = random_string()
-
-            if len(normalization_data['nc']) > i:            
-
-                data = normalization_data['nc'][i]
-
-                mmi = tf.constant_initializer(data[0])
-                mvi = tf.constant_initializer(data[1])
-
-                if data[2] is not None:
-                   bi = tf.constant_initializer(data[2])
-                   gi = tf.constant_initializer(data[3])
-                else:
-                   bi = tf.zeros_initializer()
-                   gi = tf.ones_initializer()
-
-
-            else:
-                mmi = tf.zeros_initializer()
-                mvi = tf.ones_initializer()
-                bi = tf.zeros_initializer()
-                gi = tf.ones_initializer()
-                normalization_data['nc'].append(None)
-
-            conv = tf.layers.batch_normalization(conv, training = is_training, name = layer_name, moving_mean_initializer = mmi, \
-                moving_variance_initializer = mvi, gamma_initializer = gi, beta_initializer = bi)
-            
-            # the only way to get the layer variables...
-            with tf.variable_scope(layer_name, reuse = True):
-                mm = tf.get_variable('moving_mean')
-                mv = tf.get_variable('moving_variance')
-                beta = tf.get_variable('beta')
-                gamma = tf.get_variable('gamma')
-
-            normalization_data['nc'][i] = [mm, mv, beta, gamma]
-            
-        conv = tf.nn.bias_add(conv, biases['bc'][i])
-        
-        conv = tf.nn.relu(conv)
-        
-        # Max Pooling (down-sampling)
-        
-        if mp > 1:
-           conv = maxpool2d(conv, k = mp)
 
     # Fully connected layer
     # Reshape conv2 output to fit fully connected layer input
-    fc = tf.reshape(conv, [-1, weights['wd'][0].get_shape().as_list()[0]])
+    fc = x
 
     for i in range(hidden_layers_n):
       
@@ -274,35 +181,7 @@ if summary_file is None:
 
    pk = 1
 
-   inputs_n = 1
-
-   for i in range(conv_layers_n):
-      ks = kernel_sizes[i]
-      fs = features[i]
-      mp = max_pooling[i]
-      s = strides[i]
-
-      pk = pk * mp * s
-
-      if i == 0:
-         biases['bc'].append(tf.Variable(tf.zeros([fs])))
-      else:
-         biases['bc'].append(tf.Variable(tf.constant(0.1, shape=[fs], dtype=tf.float32)))
-
-      # calculate variance as 2 / (inputs + outputs)
-      # Glorot & Bengio => 2 / inputs
-
-      total_inputs = ks * ks * inputs_n;
-      total_outputs = fs;
-      # var = 2. / (total_inputs + total_outputs)
-      var = 2. / (total_inputs)
-      stddev = math.sqrt(var)
-      print('stddev = ' + str(stddev))
-
-      weights['wc'].append(tf.Variable(tf.truncated_normal([ks, ks, inputs_n, fs], stddev = stddev, seed = initial_weights_seed)))
-
-      inputs_n = fs
-
+   inputs_n = n_input
 
    # fully connected, 7*7*64 inputs, 1024 outputs
 
@@ -313,7 +192,7 @@ if summary_file is None:
 
       if i == 0:
 
-         total_inputs = int((image_width / pk) * (image_height / pk) * inputs_n)
+         total_inputs = int(inputs_n)
          total_outputs = fc_sizes[i];
          #var = 2. / (total_inputs + total_outputs)
          var = 2. / (total_inputs)
@@ -352,29 +231,15 @@ if summary_file is None:
 
 if summary_file is not None:
    
-    weights, biases, normalization_data, kernel_sizes, features, strides, max_pooling, fc_sizes, weights_copy, biases_copy = model_persistency.load_summary_file(summary_file)
-    hidden_layers_n = len(weights['wd'])
-    conv_layers_n = len(weights['wc'])
-    if weights_copy['wc'][0] is None:    
-        weights_copy['wc'] = []        
-    if weights_copy['wd'][0] is None:    
-        weights_copy['wd'] = []
-        
-if len(weights_copy['wd']) == 0: 
+   weights, biases, normalization_data, kernel_sizes, features, strides, max_pooling, fc_sizes, weights_copy, biases_copy = model_persistency.load_summary_file(summary_file)
+   hidden_layers_n = len(weights['wd'])
+   conv_layers_n = len(weights['wc'])
+   
+else:
 
    for i in range(hidden_layers_n):
       weights_copy['wd'].append(tf.Variable(weights['wd'][i].initialized_value()))
 
-      
-if len(weights_copy['wc']) == 0: 
-      
-   print('here')   
-   for i in range(conv_layers_n):
-      print('here 0')   
-      weights_copy['wc'].append(tf.Variable(weights['wc'][i].initialized_value()))
-
-if weights_copy['out'] is None: 
-      
    weights_copy['out'] = tf.Variable(weights['out'].initialized_value())
 
 def euclidean_norm(a):
@@ -394,10 +259,6 @@ def weights_change_absolute(a, b):
 def weights_change_summary():
     l = []
 
-    for i in range(conv_layers_n):
-        wc = weights_change(weights['wc'][i], weights_copy['wc'][i])
-        l.append(tf.summary.scalar('wc' + str(i + 1), wc))
-
     for i in range(hidden_layers_n):
         wd = weights_change(weights['wd'][i], weights_copy['wd'][i])
         l.append(tf.summary.scalar('wd' + str(i + 1), wd))
@@ -406,9 +267,6 @@ def weights_change_summary():
     l.append(tf.summary.scalar('out', out))
 
     # absolute
-    for i in range(conv_layers_n):
-        wca = weights_change_absolute(weights['wc'][i], weights_copy['wc'][i])
-        l.append(tf.summary.scalar('wca' + str(i + 1), wca))
 
     for i in range(hidden_layers_n):
         wda = weights_change_absolute(weights['wd'][i], weights_copy['wd'][i])
@@ -419,60 +277,14 @@ def weights_change_summary():
 
     return tf.summary.merge(l)
 
-def just_prepare(gray8):
-    return augment.prepare(gray8, do_augment = False)
-
-def prepare_and_augment(gray8):
-    return augment.prepare(gray8, do_augment = True)
-
 # initialize train data
-train_data = []
-for i in range(n_classes):
-    print('processing class folder ' + str(i))
-    class_data_path = data_path + '/' + str(i + 1) + '/'
-
-    data_file_names = sorted(glob.glob(class_data_path + '/*r.png'))
-    #label_file_names = sorted(glob.glob(class_data_path + '/*.csv'))
-    
-    #file_names = zip(data_file_names, label_file_names)
-    
-    # the same order everytime
-    
-    random.seed(0)
-    random.shuffle(data_file_names)
-    #file_names = file_names[0:test_amount + 1]
-    
-    '''
-    train_amount = train_amount + len(file_names)
-    if test_data_path is None:
-        train_amount = train_amount - test_amount
-    '''
-    
-    train_data.append(data_file_names)
-
-if args.shuffled:
-    all_files = []
-    for i in range(n_classes):
-        all_files.extend(train_data[i])
-    random.seed(0)
-    random.shuffle(all_files)
-    train_data = []
-    
-    index = 0
-    per_class = int(len(all_files) / n_classes)
-    for i in range(n_classes):    
-        last_index = index + per_class
-        if i == n_classes - 1:
-            last_index = len(all_files)
-        train_data.append(all_files[index:last_index]) 
-        index = last_index
+train_data = np.genfromtxt("features.csv", delimiter = ',')
     
 cross_validation_chunks = 10
 test_amount = 0
 
-max_train_amount = len(max(train_data, key = len))        
+max_train_amount = len(train_data)        
 #max_test_amount = int(max_train_amount / cross_validation_chunks)
-
     
 print('processing train input')
 data_per_class = max_train_amount 
@@ -480,38 +292,31 @@ print('data per class:', data_per_class)
 
 train_cv_data = []
 train_cv_data_lengths = []
-for d in train_data:
-    test_amount = float(len(d)) / cross_validation_chunks 
-    cv_d = d[:int(args.test_chunk * test_amount)] + d[int((args.test_chunk + 1) * test_amount):]
+test_amount = int(len(train_data) / cross_validation_chunks) 
 
-    train_cv_data_lengths.append(len(cv_d))        
+print(train_data.shape)
+
+cv_d = np.concatenate((train_data[:int(args.test_chunk * test_amount), :], train_data[int((args.test_chunk + 1) * test_amount):, :]))
+
+#print(cv_d)
+
+train_cv_data_lengths.append(len(cv_d))        
         
-    if len(cv_d) < data_per_class:
-        cv_d = cv_d + ["padding"] * (data_per_class - len(cv_d))
-             
-    #print('train data:', cv_d)
-    #print(len(cv_d))
-        
-    train_cv_data.append(cv_d)    
+train_cv_data = cv_d    
 
    
 test_cv_data = []
-   
-for d in train_data:    
 
-    test_amount = float(len(d)) / cross_validation_chunks 
-
-    print('test amount:', test_amount)                
+print('test amount:', test_amount)                
     
-    cv_data = d[int(args.test_chunk * test_amount):int((args.test_chunk + 1) * test_amount)]
+cv_data = train_data[int(args.test_chunk * test_amount):int((args.test_chunk + 1) * test_amount)]
     
-    #print('test data:', cv_data)
+print('test data:', cv_data)
     
-    test_cv_data.append(cv_data)
-    
+test_cv_data = cv_data
     
 # input generator
-def input_data(is_test_data, test_chunk_index, test_class = 0):
+def input_data(is_test_data, test_chunk_index):
     
     global test_cv_data, train_cv_data, train_cv_data_lengths, max_train_amount
     
@@ -526,27 +331,15 @@ def input_data(is_test_data, test_chunk_index, test_class = 0):
             
         cv_data_lengths = tf.constant(np.asarray(train_cv_data_lengths), dtype = tf.int32)    
     
-        range_queue = tf.train.range_input_producer(max_train_amount * n_classes, shuffle = True)
+        range_queue = tf.train.range_input_producer(data_len, shuffle = True)
     
         value = range_queue.dequeue()
-    
-        #class_value = tf.Print(class_value, [class_value], message = "class value: ")
-        #file_value = tf.Print(file_value, [file_value], message = "file value: ")
-
-        class_index = tf.div(value, tf.constant(max_train_amount))
-
-        #class_index = tf.Print(class_index, [class_index], message = "class index: ")
-    
-        filenames = tf.gather(cv_data, class_index)
-        amount = tf.gather(cv_data_lengths, class_index)
-    
-        file_index = tf.mod(value, amount)
-    
-        file = tf.gather(filenames, file_index)
+        
+        data = tf.gather(cv_data, value)
 
     else:
     
-        cv_data = test_cv_data[test_class]
+        cv_data = test_cv_data
 
         data_len = len(cv_data)        
         cv_data = tf.constant(np.asarray(cv_data))    
@@ -555,36 +348,18 @@ def input_data(is_test_data, test_chunk_index, test_class = 0):
         
         range_queue = tf.train.range_input_producer(data_len, shuffle = False, num_epochs = 1)
     
-        file_index = range_queue.dequeue()
-        
-        #file_index = tf.Print(file_index, [file_index], message = "file index: ")        
-        
-        class_index = tf.constant(test_class)
-    
-        file = tf.gather(cv_data, file_index)
-    
-    png_file_name = file
-    
-    labels = tf.reshape(class_index, [-1]) 
-    #labels = tf.expand_dims(class_index)    
-    #labels = class_index
-    
-    png_data = tf.read_file(file)
-    data = tf.image.decode_png(png_data)
+        value = range_queue.dequeue()
+                    
+        data = tf.gather(cv_data, value)
 
-    if not is_test_data:
-       data1 = tf.py_func(prepare_and_augment, [data], [tf.float32])[0]
-    else:
-       data1 = tf.py_func(just_prepare, [data], [tf.float32])[0]    
-    
-    data1 = tf.reshape(data1, [-1])
-    data1 = tf.to_float(data1)
-
-    return data1, tf.cast(labels, tf.float32), data_len
+    gender =  tf.reshape(tf.gather(data, tf.constant(1)), [-1])
+    data = tf.slice(data, [2], [n_input])   
+            
+    return data, tf.cast(gender, tf.float32), data_len
 
 x, y, _ = input_data(False, 0)
 
-x.set_shape([image_height * image_width])
+x.set_shape([n_input])
 
 if n_classes == 2:
     n_outputs = 1
@@ -609,9 +384,12 @@ regularizers = tf.nn.l2_loss(weights['out'])
 for i in range(hidden_layers_n):
     regularizers = regularizers + tf.nn.l2_loss(weights['wd'][i])  
 
+print("regularization coeff.:", regularization_coeff) 
+    
 # Add the regularization term to the loss.
 cost = loss + regularization_coeff * regularizers
 
+#cost = loss
 
 # Optimizer: set up a variable that's incremented once per batch and
 # controls the learning rate decay.
@@ -646,9 +424,9 @@ with tf.control_dependencies(update_ops):
 
 # Define evaluation pipeline
 
-def test_input(test_class):
-    x1, y1, total = input_data(True, args.test_chunk, test_class)
-    x1.set_shape([image_height * image_width])
+def test_input():
+    x1, y1, total = input_data(True, args.test_chunk)
+    x1.set_shape([n_input])
     if n_classes == 2:
         n_outputs = 1
     else:
@@ -668,6 +446,7 @@ def test_input(test_class):
 #correct_pred = tf.equal(tf.argmax(pred1, 1), tf.argmax(y1_batch, 1))
 #accuracy = tf.reduce_mean(tf.cast(correct_pred, tf.float32)) 
 
+
 pred_int = tf.rint(tf.sigmoid(pred_batch_ph))
 correct_pred = tf.equal(pred_int, tf.rint(y_batch_ph))
 accuracy = tf.reduce_mean(tf.cast(correct_pred, tf.float32))
@@ -680,7 +459,11 @@ zeros = tf.subtract(total, ones)
 pred_bool = tf.cast(tf.rint(tf.sigmoid(pred_batch_ph)), tf.bool)
 correct_ones = tf.reduce_sum(tf.logical_and(pred_bool, y_batch_ph))
 correct_zeros = tf.reduce_sum(tf.logical_not(tf.logical_or(pred_bool, y_batch_ph)))
+'''
 
+cast_to_int = tf.rint(tf.sigmoid(pred_batch_ph))
+
+'''
 ones_accuracy = tf.divide(tf.cast(correct_ones, tf.float32), ones)
 zeros_accuracy = tf.divide(tf.cast(correct_zeros, tf.float32), zeros)
 '''
@@ -688,10 +471,6 @@ zeros_accuracy = tf.divide(tf.cast(correct_zeros, tf.float32), zeros)
 #correct_pred = tf.equal(tf.rint(tf.sigmoid(pred_batch_ph)), y_batch_ph)
 #accuracy = tf.reduce_mean(tf.cast(correct_pred, tf.float32))
 
-if len(kernel_sizes) > 0:
-
-   grid = tf_visualization.put_kernels_on_color_grid (weights['wc'][0], grid_Y = 16, grid_X = 16)
-   grid_orig = tf_visualization.put_kernels_on_color_grid (weights_copy['wc'][0], grid_Y = 16, grid_X = 16)
 #grid = tf_visualization.put_averaged_kernels_on_color_grid (weights['wc2'], grid_Y = 8, grid_X = 8)
 #grid = tf_visualization.put_fully_connected_on_grid (weights['wd1'], grid_Y = 25, grid_X = 25)
 
@@ -714,18 +493,6 @@ for i in range(len(fc_sizes)):
     name = 'fully connected layer ' + str(i + 1) + ' size'
     const_summaries.append(tf.summary.scalar(name, tf.constant(fc_sizes[i])))
 
-const_summaries.append(tf.summary.scalar('convolutional layers', tf.constant(len(kernel_sizes))))
-
-for i in range(len(kernel_sizes)):
-    name = 'convolutional_layer_kernel_size_' + str(i + 1)
-    const_summaries.append(tf.summary.scalar(name, tf.constant(kernel_sizes[i])))
-    name = 'convolutional_layer_features_' + str(i + 1)
-    const_summaries.append(tf.summary.scalar(name, tf.constant(features[i])))
-    name = 'convolutional_layer_strides_' + str(i + 1)
-    const_summaries.append(tf.summary.scalar(name, tf.constant(strides[i])))    
-    name = 'convolutional_layer_max_pooling_' + str(i + 1)
-    const_summaries.append(tf.summary.scalar(name, tf.constant(max_pooling[i])))
-
 const_summaries.append(tf.summary.scalar('dropout probablility', tf.constant(dropout)))
 const_summaries.append(tf.summary.scalar('epochs', tf.constant(epochs)))
 const_summaries.append(tf.summary.scalar('train amount', tf.constant(train_amount)))
@@ -738,17 +505,12 @@ if initial_weights_seed is None:
 else:
    const_summaries.append(tf.summary.scalar('initial weights seed', tf.constant(initial_weights_seed)))
 
-if len(kernel_sizes) > 0:
-   const_summaries.append(tf.summary.image('conv1orig', grid_orig, max_outputs = 1))
-
 const_summary = tf.summary.merge(const_summaries)
 
 train_summaries = []
 
 train_summaries.append(weights_change_summary())
 
-if len(kernel_sizes) > 0:
-   train_summaries.append(tf.summary.image('conv1/features', grid, max_outputs = 1))
 train_summaries.append(tf.summary.scalar('accuracy', accuracy_ph))
 train_summaries.append(tf.summary.scalar('train_accuracy', train_accuracy_ph))
 train_summaries.append(tf.summary.scalar('loss', loss_ph))
@@ -768,18 +530,6 @@ print("starting learning session")
 print('fully connected layers: ' + str(len(fc_sizes)))
 for i in range(len(fc_sizes)):
     print('fully connected layer ' + str(i + 1) + ' size: ' + str(fc_sizes[i]))
-
-for i in range(len(kernel_sizes)):
-    print('conv. layer ' + str(i + 1) + ' kernel size: ' + str(kernel_sizes[i]))
-
-for i in range(len(features)):
-    print('conv. layer ' + str(i + 1) + ' features: ' + str(features[i]))
-
-for i in range(len(strides)):
-    print('conv. layer ' + str(i + 1) + ' strides: ' + str(strides[i]))
-    
-for i in range(len(max_pooling)):
-    print('conv. layer ' + str(i + 1) + ' max pooling: ' + str(max_pooling[i]))
 
 print("dropout probability: " + str(dropout))
 print("learning rate: " + str(learning_rate))
@@ -819,8 +569,6 @@ loss_value = 0
 cost_value = 0
 train_accuracy_value = -1
 
-import os
-
 def calc_test_accuracy():
 
     global accuracy_value
@@ -830,18 +578,12 @@ def calc_test_accuracy():
     print("evaluating test data...")
 
     test_sess = tf.Session()
-    
-    test_batches = []
-    
-    class_predictions = [[], []]
-    
+        
     with test_sess.as_default():
 
         try:
     
-            for n in range(n_classes):    
-                x1_batch, y1_batch, test_amount = test_input(n)       
-                test_batches.append((x1_batch, y1_batch, test_amount))
+            x1_batch, y1_batch, test_amount = test_input()       
         
             test_init = tf.group(tf.global_variables_initializer(), tf.local_variables_initializer())
 
@@ -850,80 +592,67 @@ def calc_test_accuracy():
             test_coord = tf.train.Coordinator()
 
             tf.train.start_queue_runners(sess = test_sess, coord = test_coord)
-            
-            
-            
-            for n in range(n_classes):
-            
-                x1_batch, y1_batch, test_amount = test_batches[n]
+                                     
+            #print("test amount:", test_amount)
                 
-                #print("test amount:", test_amount)
+            batch_number = int((test_amount + eval_batch_size - 1) / eval_batch_size)
                 
-                batch_number = int((test_amount + eval_batch_size - 1) / eval_batch_size)
-                
-                acc_sum = 0.0
-                for i in range(batch_number):
+            total_correct_ones = 0
+            total_correct_zeros = 0
+            total_ones = 0
+            total_zeros = 0
+            for i in range(batch_number):
                     
-                    x, y = test_sess.run([x1_batch, y1_batch])
+                x, y = test_sess.run([x1_batch, y1_batch])
                     
-                    print('batch size:', len(y))
+                print('batch size:', len(y))
                     
-                    p = sess.run(pred, feed_dict = { dropout_ph: 0.0, is_training_ph: False, x_batch_ph: x } )
-                                        
-                    pi, acc = sess.run([pred_int, accuracy], feed_dict = { pred_batch_ph : p, y_batch_ph : y } )                       
-                    
-                    if args.classify:
-                        class_predictions[n] = np.append(class_predictions[n], pi)  
-                    
-                    acc_sum = acc_sum + acc * len(y)
-                    
-                class_accuracies[n] = acc_sum / test_amount
-                
-                print(class_accuracies[n])
+                p = sess.run(pred, feed_dict = { dropout_ph: 0.0, is_training_ph: False, x_batch_ph: x } )
 
+                #print(x)
+                #print(p)
+                
+                p = sess.run(cast_to_int, feed_dict = { pred_batch_ph : p})
+                
+                y = y.astype(np.int)
+                
+                #print(p)
+                
+                ones = np.sum(y)
+                total = y.size
+                zeros = total - ones
+                p = p > 0
+                y = y > 0
+                correct_ones = np.sum((np.logical_and(p, y)).astype(np.int))
+                correct_zeros = np.sum((np.logical_not(np.logical_or(p, y))).astype(np.int))
+                
+                total_ones += ones
+                total_zeros += zeros
+                total_correct_ones += correct_ones
+                total_correct_zeros += correct_zeros
+                    
+                
+            print("total ones:", total_ones)   
+            print("total zeros:", total_zeros)   
+                
+            fa = float(total_correct_ones) / total_ones
+            print('female accuracy:', fa)
+            ma = float(total_correct_zeros) / total_zeros
+            print('male accuracy:', ma)
+            a = (fa + ma) / 2.
+            print('accuracy:', a)
+
+            
+            
             test_coord.request_stop()
             test_coord.join()
 
             test_sess.close()
-            
-            if args.classify:
-            
-                pn = 0
-                
-                for predictions in class_predictions:
-                
-                    print(predictions)
-                                                                        
-                    predictions = np.dstack((test_cv_data[pn], predictions))
-                    
-                    print(predictions)
-                    
-                    #f = open("predictions-" + str(args.test_chunk) + ".csv", 'a+')
-                    #f = open("predictions.csv", 'a+')
-                    
-                    f = open("predictions-" + str(pn) + ".csv", 'a+')            
-                    pn = pn + 1
-                    
-                    predictions = np.squeeze(predictions)
-                    for p in predictions:
-                        
-                        csv_line = '';
-
-                        fn = os.path.basename(p[0])
-                        
-                        csv_line += '"' + fn + '",'
-                        csv_line += str(p[1])
-
-                        print(csv_line, file = f)
-                        
-                        
-                    f.close()
-                
         except Exception as e:
             
             print('exception in calc_test_acuracy:', traceback.print_exc(file = sys.stdout))
             
-        accuracy_value = np.mean(class_accuracies)
+        accuracy_value = a
 
 
 def calc_train_accuracy(pred, y):
@@ -972,8 +701,6 @@ for i in range(iterations):
 
     if i % summary_interval == 0:
         calc_test_accuracy()
-        if args.classify:
-            sys.exit()
 
     _, loss_value, cost_value, p = sess.run([optimizer, loss, cost, pred], feed_dict = { x_batch_ph: x, y_batch_ph : y, dropout_ph: dropout, is_training_ph: True } )
 
