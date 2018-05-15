@@ -1,10 +1,10 @@
 function [female, male, overall] = analyze_raw_input(data,responses,varargin)
 
-P = parsePairs(varargin);
-checkField(P,'Method','Ridge');
-checkField(P,'Balance',0);
-checkField(P,'Reduce',4);
-
+    P = parsePairs(varargin);
+    checkField(P,'Method','Ridge');
+    checkField(P,'Balance',1);
+    checkField(P,'Reduce',0);
+    checkField(P,'Shuffled',0);
 
     female = [];
     male = [];
@@ -22,6 +22,10 @@ checkField(P,'Reduce',4);
       data = data(:, IndSel);
       responses = responses(IndSel);
     end
+    
+    if P.Shuffled        
+        responses = responses(randperm(length(responses)));
+    end    
     
     % SVMModel = fitcsvm(X,Y,'KernelFunction','rbf','Standardize',true,'ClassNames', {'negClass', 'posClass'});
     
@@ -53,7 +57,7 @@ checkField(P,'Reduce',4);
     fprintf('accuracy(female): %f\n', accuracy_female);    
     fprintf('accuracy(male) : %f\n', accuracy_male);    
     fprintf('accuracy(overall) : %f\n', accuracy);
-    
+        
     for k = 1:length(indices)
 
         i = indices{k};

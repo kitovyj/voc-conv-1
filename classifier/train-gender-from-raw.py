@@ -13,6 +13,7 @@ import string
 import model_persistency
 import glob
 import traceback
+import os
 
 parser = argparse.ArgumentParser()
 
@@ -27,7 +28,7 @@ parser.add_argument('--initial-weights-seed', dest = 'initial_weights_seed', typ
 parser.add_argument('--dropout', dest = 'dropout', type = float, default = 0.0, help = 'drop out probability')
 parser.add_argument('--epochs', dest = 'epochs', type = int, default = 40, help = 'number of training epochs')
 parser.add_argument('--train-amount', dest = 'train_amount', type = int, default = 11020, help = 'number of training samples')
-parser.add_argument('--data-path', dest = 'data_path', default = './raw-data-gender/', help = 'the path where input data are stored')
+parser.add_argument('--data-path', dest = 'data_path', default = './data_unbalanced_new/', help = 'the path where input data are stored')
 parser.add_argument('--test-data-path', dest = 'test_data_path', default = None, help = 'the path where input test data are stored')
 parser.add_argument('--test-amount', dest = 'test_amount', type = int, default = 250, help = 'number of test samples')
 parser.add_argument('--summary-file', dest = 'summary_file', default = None, help = 'the summary file where the trained weights and network parameters are stored')
@@ -37,6 +38,7 @@ parser.add_argument('--summary-records', dest = 'summary_records', type = int, d
 parser.add_argument('--test-chunk', dest = 'test_chunk', type = int, default = 0, help = 'the test chunk for cross validation')
 parser.add_argument('--shuffled', action = 'store_true', dest='shuffled', help = 'shuffle labels')
 parser.add_argument('--classify', action = 'store_true', dest='classify', help = 'just classify')
+parser.add_argument('--test-recordings', action = 'store_true', dest='test_recordings', help = 'use recording as test sets')
 
 args = parser.parse_args()
 
@@ -426,88 +428,130 @@ def prepare_and_augment(gray8):
     return augment.prepare(gray8, do_augment = True)
 
 # initialize train data
-train_data = []
-for i in range(n_classes):
-    print('processing class folder ' + str(i))
-    class_data_path = data_path + '/' + str(i + 1) + '/'
 
-    data_file_names = sorted(glob.glob(class_data_path + '/*r.png'))
-    #label_file_names = sorted(glob.glob(class_data_path + '/*.csv'))
-    
-    #file_names = zip(data_file_names, label_file_names)
-    
-    # the same order everytime
-    
-    random.seed(0)
-    random.shuffle(data_file_names)
-    #file_names = file_names[0:test_amount + 1]
-    
-    '''
-    train_amount = train_amount + len(file_names)
-    if test_data_path is None:
-        train_amount = train_amount - test_amount
-    '''
-    
-    train_data.append(data_file_names)
+print('processing train data in ' + data_path + '...')
 
-if args.shuffled:
-    all_files = []
-    for i in range(n_classes):
-        all_files.extend(train_data[i])
-    random.seed(0)
-    random.shuffle(all_files)
+data_file_names = sorted(glob.glob(data_path + '/*.csv'))
+
+random.seed(0)
+random.shuffle(data_file_names)
+
+all_data = []
+
+for fn in data_file_names:
+
+    bn = os.path.basename(fn)
+    base, ext = os.path.splitext(bn)
+        
+    id_fn = os.path.join(data_path, base + ".id")
+    png_fn = os.path.join(data_path, base + "r.png")
+    
+    id_file = open(id_fn, "r") 
+    m_id = id_file.read()     
+    
+    if m_id.startswith("Rfem_Afem"):
+        m_id = int(m_id[9:])
+    else:
+        m_id = int(m_id[10:]) + 10
+   
+    csv_data = np.genfromtxt(fn, delimiter = ',')
+        
+    #print(basic_data)
+    row = np.array([int(m_id), int(csv_data[0]), png_fn], dtype = np.object)
+    
+    #row = np.concatenate([[int(m_id)], [int(csv_data[0])], [png_fn]])
+    all_data.append(row)
+    
+all_data = np.stack(all_data)
+
+print('done.')
+
+print(all_data)
+
+if args.test_recordings:
+
+    recording = all_data[all_data[:, 0] == args.test_chunk, :]
+    all_data = all_data[all_data[:, 0] != args.test_chunk, :]
+    
     train_data = []
-    
-    index = 0
-    per_class = int(len(all_files) / n_classes)
-    for i in range(n_classes):    
-        last_index = index + per_class
-        if i == n_classes - 1:
-            last_index = len(all_files)
-        train_data.append(all_files[index:last_index]) 
-        index = last_index
-    
-cross_validation_chunks = 10
-test_amount = 0
+    for i in range(n_classes):
+        train_data.append(all_data[all_data[:, 1] == i, 2].tolist())
 
-max_train_amount = len(max(train_data, key = len))        
-#max_test_amount = int(max_train_amount / cross_validation_chunks)
-
-    
-print('processing train input')
-data_per_class = max_train_amount 
-print('data per class:', data_per_class)        
-
-train_cv_data = []
-train_cv_data_lengths = []
-for d in train_data:
-    test_amount = float(len(d)) / cross_validation_chunks 
-    cv_d = d[:int(args.test_chunk * test_amount)] + d[int((args.test_chunk + 1) * test_amount):]
-
-    train_cv_data_lengths.append(len(cv_d))        
+    max_train_amount = len(max(train_data, key = len))        
+    #max_test_amount = int(max_train_amount / cross_validation_chunks)
         
-    if len(cv_d) < data_per_class:
-        cv_d = cv_d + ["padding"] * (data_per_class - len(cv_d))
-             
-    #print('train data:', cv_d)
-    #print(len(cv_d))
+    print('processing train input')
+    data_per_class = max_train_amount 
+    print('data per class:', data_per_class)        
+
+    train_cv_data = []
+    train_cv_data_lengths = []
+    for d in train_data:
+        cv_d = d
+        train_cv_data_lengths.append(len(cv_d))        
+        if len(cv_d) < data_per_class:
+            cv_d = cv_d + ["padding"] * (data_per_class - len(cv_d))
+        train_cv_data.append(cv_d)    
+       
+    test_cv_data = [[] for i in range(n_classes)]
+    
+    recording_gender = recording[0, 1]
+    
+    test_cv_data[recording_gender] = recording[:, 2].tolist()
+       
+else:
+
+    train_data = []
+    for i in range(n_classes):
+        train_data.append(all_data[all_data[:, 1] == i, 2].tolist())
+
+    print(train_data[0])
+    print(train_data[1])    
+
+    if args.shuffled:
+        all_files = []
+        for i in range(n_classes):
+            all_files.extend(train_data[i])
+        random.seed(0)
+        random.shuffle(all_files)
+        train_data = []
         
-    train_cv_data.append(cv_d)    
+        index = 0
+        per_class = int(len(all_files) / n_classes)
+        for i in range(n_classes):    
+            last_index = index + per_class
+            if i == n_classes - 1:
+                last_index = len(all_files)
+            train_data.append(all_files[index:last_index]) 
+            index = last_index
+        
+    cross_validation_chunks = 10
+    test_amount = 0
 
-   
-test_cv_data = []
-   
-for d in train_data:    
+    max_train_amount = len(max(train_data, key = len))        
+    #max_test_amount = int(max_train_amount / cross_validation_chunks)
+        
+    print('processing train input')
+    data_per_class = max_train_amount 
+    print('data per class:', data_per_class)        
 
-    test_amount = float(len(d)) / cross_validation_chunks 
-
-    print('test amount:', test_amount)                
-    
-    cv_data = d[int(args.test_chunk * test_amount):int((args.test_chunk + 1) * test_amount)]
-    
-    #print('test data:', cv_data)
-    
-    test_cv_data.append(cv_data)
+    train_cv_data = []
+    train_cv_data_lengths = []
+    for d in train_data:
+        test_amount = float(len(d)) / cross_validation_chunks 
+        cv_d = d[:int(args.test_chunk * test_amount)] + d[int((args.test_chunk + 1) * test_amount):]
+        train_cv_data_lengths.append(len(cv_d))        
+        if len(cv_d) < data_per_class:
+            cv_d = cv_d + ["padding"] * (data_per_class - len(cv_d))
+        train_cv_data.append(cv_d)    
+       
+    test_cv_data = []
+       
+    for d in train_data:    
+        test_amount = float(len(d)) / cross_validation_chunks 
+        print('test amount:', test_amount)                    
+        cv_data = d[int(args.test_chunk * test_amount):int((args.test_chunk + 1) * test_amount)]    
+        test_cv_data.append(cv_data)
     
     
 # input generator
@@ -754,11 +798,15 @@ train_summaries.append(tf.summary.scalar('train_accuracy', train_accuracy_ph))
 train_summaries.append(tf.summary.scalar('loss', loss_ph))
 train_summaries.append(tf.summary.scalar('cost', cost_ph))
 
-class_accuracies_ph = [None]*(n_classes)
+
+class_accuracies_ph = []
 
 for n in range(n_classes):
-    class_accuracies_ph[n] = tf.placeholder(tf.float32)
-    train_summaries.append(tf.summary.scalar('accuracy_' + str(n + 1), class_accuracies_ph[n]))
+    if not test_cv_data[n]:
+        continue
+    ph = tf.placeholder(tf.float32)
+    class_accuracies_ph.append(ph)
+    train_summaries.append(tf.summary.scalar('accuracy_' + str(n + 1), ph))
 
 train_summary = tf.summary.merge(train_summaries)
 
@@ -814,7 +862,7 @@ threads = tf.train.start_queue_runners(sess = sess, coord = coord)
 # accuracy testing routine
 
 accuracy_value = 0
-class_accuracies = np.zeros(n_classes)
+class_accuracies = []
 loss_value = 0
 cost_value = 0
 train_accuracy_value = -1
@@ -840,9 +888,13 @@ def calc_test_accuracy():
         try:
     
             for n in range(n_classes):    
-                x1_batch, y1_batch, test_amount = test_input(n)       
-                test_batches.append((x1_batch, y1_batch, test_amount))
-        
+                if test_cv_data[n]:
+                    x1_batch, y1_batch, test_amount = test_input(n)       
+                    test_batches.append((x1_batch, y1_batch, test_amount))
+                else:
+                    test_batches.append(None)
+                
+                    
             test_init = tf.group(tf.global_variables_initializer(), tf.local_variables_initializer())
 
             test_sess.run(test_init)
@@ -851,9 +903,12 @@ def calc_test_accuracy():
 
             tf.train.start_queue_runners(sess = test_sess, coord = test_coord)
             
-            
+            class_accuracies = []
             
             for n in range(n_classes):
+
+                if not test_cv_data[n]:
+                    continue
             
                 x1_batch, y1_batch, test_amount = test_batches[n]
                 
@@ -877,9 +932,9 @@ def calc_test_accuracy():
                     
                     acc_sum = acc_sum + acc * len(y)
                     
-                class_accuracies[n] = acc_sum / test_amount
+                class_accuracies.append(acc_sum / test_amount)
                 
-                print(class_accuracies[n])
+                print(class_accuracies[len(class_accuracies) - 1])
 
             test_coord.request_stop()
             test_coord.join()
@@ -960,7 +1015,8 @@ def write_summaries():
     global cost_value
 
     fd = { accuracy_ph: accuracy_value, train_accuracy_ph: train_accuracy_value, loss_ph: loss_value, cost_ph: cost_value }
-    for n in range(n_classes):
+    for n in range(len(class_accuracies)):
+        #print(n)
         fd[class_accuracies_ph[n]] = class_accuracies[n]
 
     s = sess.run(train_summary, feed_dict = fd)

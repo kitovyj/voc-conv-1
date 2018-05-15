@@ -34,9 +34,9 @@ for iCV = 1:length(Bounds)-1
       RR = X(cIndTrain,:)'*X(cIndTrain,:);  RS = X(cIndTrain,:)'*y(cIndTrain);
       Model.b(iCV,:) = inv(RR + P.Lambda*eye(size(RR)))*RS;
     case 'SVM';
-      % options.MaxIter = Inf;        
-      % Model.SVM(iCV)= svmtrain(X(cIndTrain,:),y(cIndTrain), 'Options', options);
-      Model.SVM(iCV)= svmtrain(X(cIndTrain,:), y(cIndTrain), 'kernel_function', 'quadratic', 'boxconstraint', 1, 'tolkkt', 0.1);
+      options.MaxIter = Inf;        
+      Model.SVM(iCV)= svmtrain(X(cIndTrain,:),y(cIndTrain), 'Options', options);
+      %Model.SVM(iCV)= svmtrain(X(cIndTrain,:), y(cIndTrain), 'kernel_function', 'quadratic', 'boxconstraint', 1, 'tolkkt', 0.1);
   end
 
   % PREDICT 

@@ -1,8 +1,8 @@
 function collect_vocalizations_balanced()
  
-    path = 'c:\DNN\hammerschmidt\';
+    path = 'd:\DNN\hammerschmidt\';
     
-    data_path = '.\data_temp\';
+    data_path = '.\data_temp_1\';
     
     count = 0;
     total_classes = [0, 0];
@@ -110,7 +110,7 @@ function collect_vocalizations_balanced()
     % equalize, [6477, 4492]
     % new : [5760, 4361]
     
-    count = equalize(total_classes, 1, '.\data\', '.\data_temp\');
+    count = equalize(total_classes, 0, '.\data\', '.\data_temp\');
     
     % permute
     
