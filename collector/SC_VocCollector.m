@@ -1,0 +1,33 @@
+function SC_VocCollector(varargin)
+% COMPUTE AND SAVE THE VOCALIZATIONS FOR A SET OF RECORDINGS
+
+P = parsePairs(varargin);
+checkField(P,'VocJitter',0.002);
+checkField(P,'FWindow',0.001);
+checkField(P);
+
+P.Selected = {...
+  {'mouse9',66},...
+  {'mouse9',49},...
+  {'mouse9',50},...
+  {'mouse9',41},...
+  {'mouse9',17},...
+  {'mouse9',61},...
+  {'mouse9',27},...
+  {'mouse9',24},...
+  {'mouse9',26}};
+  
+for iR=1:length(P.Selected)
+  cRecord = P.Selected{iR};
+  V = VocCollector('Animals',cRecord(1),'Recording',cRecord{2},'Paradigm','Interaction',...
+    'Reload',1,'VocJitter',P.VocJitter);
+  V = VocAnalyzer(V,'FIG',1);
+  [Path,Paths] = C_getDir('Animal',cRecord{1},'Recording',cRecord{2});
+  ResPath = [Paths.DB,'Results'];
+  try mkdir(ResPath); end;
+  VocPath = [ResPath,filesep,'Vocalizations'];
+  try mkdir(VocPath); end;
+  VocFile = [VocPath,filesep,'Vocalizations.mat'];
+  save(VocFile,'V');
+end
+ 
