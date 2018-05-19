@@ -41,12 +41,14 @@ predictions = {}
 for p in predictions_male:
 
     fn = p[0]
-    
+
+    '''
     if int(fn[5:(5 + 9)]) == 3155:    
         print(fn)
+    '''
     
     id = fn[1:(1 + 4 + 9)] + b".csv"
-    id = male2permuted[id]
+    #id = male2permuted[id]
     t = id[0:4]
     #print(t)
     id = int(id[4:(4+9)])
@@ -62,7 +64,7 @@ for p in predictions_female:
     fn = p[0]
         
     id = fn[1:(1 + 4 + 9)] + b".csv"
-    id = female2permuted[id]
+    #id = female2permuted[id]
     t = id[0:4]
     id = int(id[4:(4+9)])
     if t == b"test":
@@ -97,11 +99,16 @@ for x in labels:
     #print(x)
     id = int(x[0])
     
+    '''
     if id < non_test:
         basic_data_fn = os.path.join(args.in_path, "data" + str(id).zfill(9))
     else:
         basic_data_fn = os.path.join(args.in_path, "test" + str(id - non_test).zfill(9))
-        
+    '''
+
+    basic_data_fn = os.path.join(args.in_path, "data" + str(id).zfill(9))
+
+    
     id_fn = basic_data_fn + ".id"
     data_fn = basic_data_fn + ".csv"
     

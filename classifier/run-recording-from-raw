@@ -1,0 +1,24 @@
+EPOCHS0=50
+EPOCHS1=40
+SR=100
+
+mkdir train
+mkdir train/cv
+
+for c in {0..9}; do
+
+    mkdir train/cv/$c
+
+    python3 -u ./train-recording-from-raw.py --epochs $EPOCHS0 --kernel-sizes 10 5 3 3 --features 256 256 256 256 --max-pooling 1 1 1 1 --strides 2 2 1 1 --fc-num 2 --fc-sizes 50 50 --dropout 0.0 --regularization 0.0000 --learning-rate 0.001 --batch-normalization --summary-records $SR --test-chunk $c
+    
+    sleep 2
+    
+    mv train/*.tfevents* train/cv/$c/pretrained.tfevents
+
+    python3 -u ./train-recording-from-raw.py --epochs $EPOCHS1 --kernel-sizes 10 5 3 3 --features 256 256 256 256 --max-pooling 1 1 1 1 --strides 2 2 1 1 --fc-num 2 --fc-sizes 50 50 --dropout 0.5 --regularization 0.0000 --learning-rate 0.0001 --batch-normalization --summary-records $SR --test-chunk $c --summary-file train/cv/$c/pretrained.tfevents
+    
+    sleep 2
+    
+    mv train/*.tfevents* train/cv/$c/pretrained-1.tfevents
+
+done

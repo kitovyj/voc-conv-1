@@ -87,7 +87,7 @@ image_height = 100
 
 # Network Parameters
 n_input = image_width * image_height
-n_classes = 2 # Mtotal classes
+n_classes = 17 # Mtotal classes
 
 batch_size = 64
 
@@ -468,90 +468,60 @@ print('done.')
 
 print(all_data)
 
-if args.test_recordings:
+train_data = []
+for i in range(18):
+    d = all_data[all_data[:, 0] == (i + 1), 2]
+    if len(d) == 0:
+        continue    
+    train_data.append(d.tolist())
 
-    recording = all_data[all_data[:, 0] == args.test_chunk, :]
-    all_data = all_data[all_data[:, 0] != args.test_chunk, :]
-    
-    train_data = []
+print(train_data[0])
+print(train_data[1])    
+
+if args.shuffled:
+    all_files = []
     for i in range(n_classes):
-        train_data.append(all_data[all_data[:, 1] == i, 2].tolist())
-
-    max_train_amount = len(max(train_data, key = len))        
-    #max_test_amount = int(max_train_amount / cross_validation_chunks)
-        
-    print('processing train input')
-    data_per_class = max_train_amount 
-    print('data per class:', data_per_class)        
-
-    train_cv_data = []
-    train_cv_data_lengths = []
-    for d in train_data:
-        cv_d = d
-        train_cv_data_lengths.append(len(cv_d))        
-        if len(cv_d) < data_per_class:
-            cv_d = cv_d + ["padding"] * (data_per_class - len(cv_d))
-        train_cv_data.append(cv_d)    
-       
-    test_cv_data = [[] for i in range(n_classes)]
-    
-    recording_gender = recording[0, 1]
-    
-    test_cv_data[recording_gender] = recording[:, 2].tolist()
-       
-else:
-
+        all_files.extend(train_data[i])
+    random.seed(0)
+    random.shuffle(all_files)
     train_data = []
-    for i in range(n_classes):
-        train_data.append(all_data[all_data[:, 1] == i, 2].tolist())
+    
+    index = 0
+    per_class = int(len(all_files) / n_classes)
+    for i in range(n_classes):    
+        last_index = index + per_class
+        if i == n_classes - 1:
+            last_index = len(all_files)
+        train_data.append(all_files[index:last_index]) 
+        index = last_index
+    
+cross_validation_chunks = 10
+test_amount = 0
 
-    print(train_data[0])
-    print(train_data[1])    
+max_train_amount = len(max(train_data, key = len))        
+#max_test_amount = int(max_train_amount / cross_validation_chunks)
+    
+print('processing train input')
+data_per_class = max_train_amount 
+print('data per class:', data_per_class)        
 
-    if args.shuffled:
-        all_files = []
-        for i in range(n_classes):
-            all_files.extend(train_data[i])
-        random.seed(0)
-        random.shuffle(all_files)
-        train_data = []
-        
-        index = 0
-        per_class = int(len(all_files) / n_classes)
-        for i in range(n_classes):    
-            last_index = index + per_class
-            if i == n_classes - 1:
-                last_index = len(all_files)
-            train_data.append(all_files[index:last_index]) 
-            index = last_index
-        
-    cross_validation_chunks = 10
-    test_amount = 0
-
-    max_train_amount = len(max(train_data, key = len))        
-    #max_test_amount = int(max_train_amount / cross_validation_chunks)
-        
-    print('processing train input')
-    data_per_class = max_train_amount 
-    print('data per class:', data_per_class)        
-
-    train_cv_data = []
-    train_cv_data_lengths = []
-    for d in train_data:
-        test_amount = float(len(d)) / cross_validation_chunks 
-        cv_d = d[:int(args.test_chunk * test_amount)] + d[int((args.test_chunk + 1) * test_amount):]
-        train_cv_data_lengths.append(len(cv_d))        
-        if len(cv_d) < data_per_class:
-            cv_d = cv_d + ["padding"] * (data_per_class - len(cv_d))
-        train_cv_data.append(cv_d)    
-       
-    test_cv_data = []
-       
-    for d in train_data:    
-        test_amount = float(len(d)) / cross_validation_chunks 
-        print('test amount:', test_amount)                    
-        cv_data = d[int(args.test_chunk * test_amount):int((args.test_chunk + 1) * test_amount)]    
-        test_cv_data.append(cv_data)
+train_cv_data = []
+train_cv_data_lengths = []
+for d in train_data:
+    test_amount = float(len(d)) / cross_validation_chunks 
+    cv_d = d[:int(args.test_chunk * test_amount)] + d[int((args.test_chunk + 1) * test_amount):]
+    train_cv_data_lengths.append(len(cv_d))        
+    if len(cv_d) < data_per_class:
+        cv_d = cv_d + ["padding"] * (data_per_class - len(cv_d))
+    train_cv_data.append(cv_d)    
+   
+test_cv_data = []
+   
+for d in train_data:    
+    test_amount = float(len(d)) / cross_validation_chunks 
+    print('test amount:', test_amount)                    
+    cv_data = d[int(args.test_chunk * test_amount):int((args.test_chunk + 1) * test_amount)]    
+    test_cv_data.append(cv_data)
     
     
 # input generator
@@ -609,7 +579,9 @@ def input_data(is_test_data, test_chunk_index, test_class = 0):
     
     png_file_name = file
     
-    labels = tf.reshape(class_index, [-1]) 
+    labels = tf.one_hot(class_index, n_classes)
+    
+    #labels = tf.reshape(class_index, [-1]) 
     #labels = tf.expand_dims(class_index)    
     #labels = class_index
     
@@ -644,7 +616,7 @@ x_batch, y_batch = tf.train.batch([x, y], batch_size = batch_size)
 pred = conv_net(x_batch_ph, weights, biases, normalization_data, dropout_ph, is_training_ph)
 
 # Define loss and optimizer
-loss = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits = pred, labels = y_batch_ph))
+loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits = pred, labels = y_batch_ph))
 
 # L2 regularization for the fully connected parameters.
 
@@ -712,10 +684,14 @@ def test_input(test_class):
 #correct_pred = tf.equal(tf.argmax(pred1, 1), tf.argmax(y1_batch, 1))
 #accuracy = tf.reduce_mean(tf.cast(correct_pred, tf.float32)) 
 
+'''
 pred_int = tf.rint(tf.sigmoid(pred_batch_ph))
 correct_pred = tf.equal(pred_int, tf.rint(y_batch_ph))
 accuracy = tf.reduce_mean(tf.cast(correct_pred, tf.float32))
+'''
 
+correct_pred = tf.equal(tf.argmax(pred_batch_ph, 1), tf.argmax(y_batch_ph, 1))
+accuracy = tf.reduce_mean(tf.cast(correct_pred, tf.float32)) 
 
 '''
 ones = tf.reduce_sum(tf.cast(y_batch_ph, tf.int32))
@@ -925,7 +901,7 @@ def calc_test_accuracy():
                     
                     p = sess.run(pred, feed_dict = { dropout_ph: 0.0, is_training_ph: False, x_batch_ph: x } )
                                         
-                    pi, acc = sess.run([pred_int, accuracy], feed_dict = { pred_batch_ph : p, y_batch_ph : y } )                       
+                    acc = sess.run(accuracy, feed_dict = { pred_batch_ph : p, y_batch_ph : y } )                       
                     
                     if args.classify:
                         class_predictions[n] = np.append(class_predictions[n], pi)  
