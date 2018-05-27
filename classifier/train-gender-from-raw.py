@@ -100,6 +100,7 @@ else:
     n_outputs = n_classes
     
 tf.set_random_seed(0)
+np.random.seed(0)
 
 # tf Graph input
 x_batch_ph = tf.placeholder(tf.float32, [None, n_input], name = 'x_batch')

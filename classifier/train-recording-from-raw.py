@@ -100,6 +100,7 @@ else:
     n_outputs = n_classes
     
 tf.set_random_seed(0)
+np.random.seed(0)
 
 # tf Graph input
 x_batch_ph = tf.placeholder(tf.float32, [None, n_input], name = 'x_batch')
@@ -567,6 +568,7 @@ def input_data(is_test_data, test_chunk_index, test_class = 0):
 
         print('data len:', data_len)
         
+        #with tf.container("test_queue"):
         range_queue = tf.train.range_input_producer(data_len, shuffle = False, num_epochs = 1)
     
         file_index = range_queue.dequeue()
@@ -595,10 +597,26 @@ def input_data(is_test_data, test_chunk_index, test_class = 0):
     
     data1 = tf.reshape(data1, [-1])
     data1 = tf.to_float(data1)
+    
+    p_queue = tf.FIFOQueue(400, [tf.float32, tf.float32])
 
-    return data1, tf.cast(labels, tf.float32), data_len
+    enqueue_op = p_queue.enqueue((data1, tf.cast(labels, tf.float32)))
+    
+    if is_test_data:
+    
+        qr = tf.train.QueueRunner(p_queue, [enqueue_op])
+    
+    else:
 
-x, y, _ = input_data(False, 0)
+        qr = tf.train.QueueRunner(p_queue, [enqueue_op] * 4)
+    
+    tf.train.add_queue_runner(qr)
+        
+    return p_queue, data_len, range_queue
+
+pq, _, _ = input_data(False, 0)
+
+x, y = pq.dequeue()
 
 x.set_shape([image_height * image_width])
 
@@ -663,7 +681,8 @@ with tf.control_dependencies(update_ops):
 # Define evaluation pipeline
 
 def test_input(test_class):
-    x1, y1, total = input_data(True, args.test_chunk, test_class)
+    pq, total, q = input_data(True, args.test_chunk, test_class)
+    x1, y1 = pq.dequeue()
     x1.set_shape([image_height * image_width])
     if n_classes == 2:
         n_outputs = 1
@@ -671,7 +690,7 @@ def test_input(test_class):
         n_outputs = n_classes
     y1.set_shape([n_outputs])
     x1_batch, y1_batch = tf.train.batch([x1, y1], batch_size = eval_batch_size, allow_smaller_final_batch = True)
-    return (x1_batch, y1_batch, total)
+    return (x1_batch, y1_batch, total, q, pq)
     
 #pred1 = conv_net(x1_batch, weights, biases, normalization_data, dropout_ph, is_training_ph)
 
@@ -724,7 +743,8 @@ train_writer = tf.summary.FileWriter('./train',  sess.graph)
 
 # todo : print out 'batch loss'
 
-iterations = max(1, int(train_amount / batch_size)) * epochs
+# could be [0..batch_size] more than epochs * train_amount
+iterations = max(1, int((train_amount * epochs + batch_size - 1) / batch_size))
 
 const_summaries = []
 
@@ -852,114 +872,139 @@ def calc_test_accuracy():
     #batches = int(round(test_amount / eval_batch_size + 0.5))
 
     print("evaluating test data...")
-
-    test_sess = tf.Session()
     
     test_batches = []
     
-    class_predictions = [[], []]
+    class_predictions = [[] for i in range(n_classes)]
+
+    with tf.Graph().as_default() as graph:
+
+        test_sess = tf.Session(graph = graph)
     
-    with test_sess.as_default():
+        with test_sess.as_default():
 
-        try:
-    
-            for n in range(n_classes):    
-                if test_cv_data[n]:
-                    x1_batch, y1_batch, test_amount = test_input(n)       
-                    test_batches.append((x1_batch, y1_batch, test_amount))
-                else:
-                    test_batches.append(None)
-                
+            try:
+        
+                for n in range(n_classes):    
+                    if test_cv_data[n]:
+                        x1_batch, y1_batch, test_amount, q, pq = test_input(n)       
+                        test_batches.append((x1_batch, y1_batch, test_amount, q, pq))
+                    else:
+                        test_batches.append(None)
                     
-            test_init = tf.group(tf.global_variables_initializer(), tf.local_variables_initializer())
+                        
+                print('initializing test session...')
+                #test_init = tf.group(tf.global_variables_initializer(), tf.local_variables_initializer())
+                test_init = tf.local_variables_initializer()
 
-            test_sess.run(test_init)
-            
-            test_coord = tf.train.Coordinator()
+                test_sess.run(test_init)
+                
+                test_coord = tf.train.Coordinator()
 
-            tf.train.start_queue_runners(sess = test_sess, coord = test_coord)
-            
-            class_accuracies = []
-            
-            for n in range(n_classes):
+                threads = tf.train.start_queue_runners(sess = test_sess, coord = test_coord)
+                
+                class_accuracies = []
 
-                if not test_cv_data[n]:
-                    continue
-            
-                x1_batch, y1_batch, test_amount = test_batches[n]
+                print('run tests...')
                 
-                #print("test amount:", test_amount)
-                
-                batch_number = int((test_amount + eval_batch_size - 1) / eval_batch_size)
-                
-                acc_sum = 0.0
-                for i in range(batch_number):
-                    
-                    x, y = test_sess.run([x1_batch, y1_batch])
-                    
-                    print('batch size:', len(y))
-                    
-                    p = sess.run(pred, feed_dict = { dropout_ph: 0.0, is_training_ph: False, x_batch_ph: x } )
-                                        
-                    acc = sess.run(accuracy, feed_dict = { pred_batch_ph : p, y_batch_ph : y } )                       
-                    
-                    if args.classify:
-                        class_predictions[n] = np.append(class_predictions[n], pi)  
-                    
-                    acc_sum = acc_sum + acc * len(y)
-                    
-                class_accuracies.append(acc_sum / test_amount)
-                
-                print(class_accuracies[len(class_accuracies) - 1])
+                for n in range(n_classes):
 
-            test_coord.request_stop()
-            test_coord.join()
-
-            test_sess.close()
-            
-            if args.classify:
-            
-                pn = 0
-                
-                for predictions in class_predictions:
-             
-                    '''
-                    if not test_cv_data[pn]:
+                    if not test_cv_data[n]:
                         continue
-                    '''
                 
-                    print(predictions)
-                                                                        
-                    predictions = np.dstack((test_cv_data[pn], predictions))
+                    x1_batch, y1_batch, test_amount, q, pq = test_batches[n]
                     
-                    print(predictions)
+                    #print("test amount:", test_amount)
                     
-                    #f = open("predictions-" + str(args.test_chunk) + ".csv", 'a+')
-                    #f = open("predictions.csv", 'a+')
+                    batch_number = int((test_amount + eval_batch_size - 1) / eval_batch_size)
                     
-                    f = open("predictions-" + str(pn) + ".csv", 'a+')            
-                    pn = pn + 1
-                    
-                    predictions = np.squeeze(predictions)
-                    for p in predictions:
+                    acc_sum = 0.0
+                    for i in range(batch_number):
                         
-                        csv_line = '';
+                        x, y = test_sess.run([x1_batch, y1_batch])
+                        
+                        print('batch size:', len(y))
+                        
+                        p = sess.run(pred, feed_dict = { dropout_ph: 0.0, is_training_ph: False, x_batch_ph: x } )
+                                            
+                        acc = sess.run(accuracy, feed_dict = { pred_batch_ph : p, y_batch_ph : y } )                       
+                        
+                        if args.classify:
+                            #print(p)
+                            if len(class_predictions[n]) == 0:
+                                class_predictions[n] = p
+                            else:
+                                class_predictions[n] = np.append(class_predictions[n], p, axis = 0)  
+                        
+                        acc_sum = acc_sum + acc * len(y)
+                        
+                    class_accuracies.append(acc_sum / test_amount)
+                    
+                    print(class_accuracies[len(class_accuracies) - 1])
 
-                        fn = os.path.basename(p[0])
-                        
-                        csv_line += '"' + fn + '",'
-                        csv_line += str(p[1])
+                                
+                test_coord.request_stop()
 
-                        print(csv_line, file = f)
-                        
-                        
-                    f.close()
+                for n in range(n_classes):
+                    if not test_cv_data[n]:
+                        continue            
+                    _, _, _, q, pq = test_batches[n]
+                    test_sess.run(pq.close(cancel_pending_enqueues = True))
+                    test_sess.run(q.close(cancel_pending_enqueues = True))
                 
-        except Exception as e:
-            
-            print('exception in calc_test_acuracy:', traceback.print_exc(file = sys.stdout))
-            
-        accuracy_value = np.mean(class_accuracies)
+                test_coord.join(stop_grace_period_secs = 5)
+                
+                #tf.Session.reset("", ["testqueues2"])
+                    
+                test_sess.close()                        
+                
+                if args.classify:
+                
+                    pn = 0
+                    
+                    for predictions in class_predictions:                        
+                    
+                        #print(predictions)
+                        #print(predictions.shape)                        
+                        #print(len(test_cv_data[pn]))
+                          
+                        #predictions = np.hstack((np.expand_dims(np.array(test_cv_data[pn]), axis = 1), predictions))
+                        
+                        #print(predictions)
+                        
+                        #f = open("predictions-" + str(args.test_chunk) + ".csv", 'a+')
+                        #f = open("predictions.csv", 'a+')
+                        
+                        f = open("predictions-" + str(pn) + ".csv", 'a+')            
+                        
+                        #predictions = np.squeeze(predictions)
+                        files = test_cv_data[pn]
+                        print(files)
+                        
+                        i = 0
+                        for p in predictions:
+                        
+                            #print(i)
+                        
+                            csv_line = '';
+
+                            fn = os.path.basename(files[i])
+                            
+                            csv_line += '"' + fn + '",'
+                            csv_line += str(np.argmax(p))
+
+                            print(csv_line, file = f)
+                            i += 1
+                            
+                        pn = pn + 1
+                            
+                        f.close()
+                    
+            except Exception as e:
+                
+                print('exception in calc_test_acuracy:', traceback.print_exc(file = sys.stdout))
+                
+            accuracy_value = np.mean(class_accuracies)
 
 
 def calc_train_accuracy(pred, y):
@@ -979,10 +1024,9 @@ def display_info(iteration, total):
     global loss_value
     global cost_value
 
-    batches_per_epoch = train_amount / batch_size
-    epoch = int(iteration / batches_per_epoch)
+    epoch = int((iteration * batch_size) / train_amount)
     done = int((iteration * 100) / total)
-    batch = int(iteration % batches_per_epoch);
+    batch = iteration
 
     print(str(done) + "% done" + ", epoch " + str(epoch) + ", batches: " + str(batch) + ", loss: " + "{:.9f}".format(loss_value) +  ", cost: " + "{:.9f}".format(cost_value) + ", train acc.: " + str(train_accuracy_value) + ", test acc.: " + str(accuracy_value))
 
