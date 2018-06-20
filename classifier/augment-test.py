@@ -23,7 +23,7 @@ for i in range(64):
 
     #im = im_src
     st = time.time()
-    im = augment.prepare(im_src, True)
+    im = augment.prepare(im_src, True, dont_keep_aspect = False)
     et = time.time()
     total_time += et - st
 

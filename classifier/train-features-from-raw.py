@@ -525,7 +525,7 @@ print('data per class:', data_per_class)
 
 train_cv_data = []
 train_cv_data_lengths = []
-test_amount = int(len(train_data) / cross_validation_chunks) 
+test_amount = float(len(train_data)) / cross_validation_chunks
 
 print(train_data.shape)
 

@@ -11,87 +11,14 @@ parser.add_argument('--in-path', dest = 'in_path', default = './data_unbalanced_
 args = parser.parse_args() 
 
 labels = np.genfromtxt(args.in_file, delimiter = ',')
-predictions_female = np.genfromtxt('predictions-0.csv', delimiter = ',', dtype = None)
-predictions_male = np.genfromtxt('predictions-1.csv', delimiter = ',', dtype = None)
 
-print(predictions_male);
-
-male2permuted_raw = np.genfromtxt('male-2-permuted.csv', delimiter = ',', dtype = np.bytes_)
-female2permuted_raw = np.genfromtxt('female-2-permuted.csv', delimiter = ',', dtype = np.bytes_)
-
-male2permuted = {}
-for i in male2permuted_raw:
-    male2permuted[i[0]] = i[1]
-
-female2permuted = {}
-for i in female2permuted_raw:
-    female2permuted[i[0]] = i[1]
-
-#print(predictions)
-
-#predictions_raw = sorted(predictions, key=lambda x: x[0])
-#predictions = np.zeros((len(labels)), dtype = np.int)
+total_recordings = 17
+total_female = 9
+total_male = 8
 
 non_test = 9621
 
 #last_id = -1
-
-predictions = {}
-
-for p in predictions_male:
-
-    fn = p[0]
-
-    '''
-    if int(fn[5:(5 + 9)]) == 3155:    
-        print(fn)
-    '''
-    
-    id = fn[1:(1 + 4 + 9)] + b".csv"
-    #id = male2permuted[id]
-    t = id[0:4]
-    #print(t)
-    id = int(id[4:(4+9)])
-    if t == b"test":
-        id = id + non_test
-
-    #print(id)
-        
-    predictions[id] = int(p[1])
-
-for p in predictions_female:
-
-    fn = p[0]
-        
-    id = fn[1:(1 + 4 + 9)] + b".csv"
-    #id = female2permuted[id]
-    t = id[0:4]
-    id = int(id[4:(4+9)])
-    if t == b"test":
-        id = id + non_test
-        
-    predictions[id] = int(p[1])
-
-    
-'''    
-    print("this id:", id)
-    
-    if id != last_id + 1:
-        print("id:", id)
-    
-    last_id = id    
-
-    if t == 'test':
-        id = id + non_test
-        
-    predictions[id] = int(p[1])
-'''
-        
-#print(predictions)
-
-#sys.exit()
-
-#print(labels)
 
 result = []
 
@@ -125,15 +52,11 @@ for x in labels:
 
     basic_data = np.genfromtxt(data_fn, delimiter = ',')
     
-    if not (id in predictions):
-        print("not predicted:", id)   
-        continue
-    
     #print(basic_data)
-    basic_data = np.concatenate([[id, m_id], [basic_data[0]], [predictions[id]], basic_data[1:]])
+    basic_data = np.concatenate([[id, m_id], [basic_data[0]], basic_data[1:]])
     r = np.concatenate([basic_data, x[1:]])
     result.append(r)
-    
+        
 result = np.stack(result)
 
 #accuracy = result[:, 2] == result[:, 3] 

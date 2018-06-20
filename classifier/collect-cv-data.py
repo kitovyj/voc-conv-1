@@ -33,7 +33,7 @@ f.close()
 for s in folders:
 
     #fn = os.path.join(s, "2", "pretrained-1.tfevents")
-    fn = os.path.join(s, "pretrained-1.tfevents")
+    fn = os.path.join(s, "pretrained-2.tfevents")
     
     accuracy = 0
     gender_accuracies = [0, 0]

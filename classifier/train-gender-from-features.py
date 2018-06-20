@@ -31,7 +31,8 @@ parser.add_argument('--batch-normalization', action = 'store_true', dest='batch_
 parser.add_argument('--summary-records', dest = 'summary_records', type = int, default = 500, help = 'how much summary records should be written')
 parser.add_argument('--test-chunk', dest = 'test_chunk', type = int, default = 0, help = 'the test chunk for cross validation')
 parser.add_argument('--shuffled', action = 'store_true', dest='shuffled', help = 'shuffle labels')
-
+parser.add_argument('--classify', action = 'store_true', dest='classify', help = 'just classify')
+parser.add_argument('--hugo-features', action = 'store_true', dest='hugo_features', help = 'just classify')
 
 args = parser.parse_args()
 
@@ -59,13 +60,18 @@ batch_normalization = args.batch_normalization
 summary_records = args.summary_records
 
 # Network Parameters
-n_input = 9
+
+if args.hugo_features:
+    n_input = 6
+else:
+    n_input = 9
+
 n_classes = 2 # Mtotal classes
 
 batch_size = 64
 
 #eval_batch_size = n_classes * 100
-eval_batch_size = 50
+eval_batch_size = 512
 
 if n_classes == 2:
     n_outputs = 1
@@ -73,20 +79,17 @@ else:
     n_outputs = n_classes
     
 tf.set_random_seed(0)
+np.random.seed(0)
+random.seed(0)
 
 # tf Graph input
-x_batch_ph = tf.placeholder(tf.float32, [None, n_input], name = 'x_batch')
-y_batch_ph = tf.placeholder(tf.float32, [None, n_outputs], name = 'y_batch')
 pred_batch_ph = tf.placeholder(tf.float32, [None, n_outputs], name = 'pred_batch')
-
 dropout_ph = tf.placeholder(tf.float32, name = "dropout") #dropout (keep probability)
 accuracy_ph = tf.placeholder(tf.float32)
 train_accuracy_ph = tf.placeholder(tf.float32)
 loss_ph = tf.placeholder(tf.float32)
 cost_ph = tf.placeholder(tf.float32)
 learning_rate_ph = tf.placeholder(tf.float32)
-is_training_ph = tf.placeholder(tf.bool)
-
 
 # Create some wrappers for simplicity
 
@@ -128,6 +131,8 @@ def conv_net(x, weights, biases, normalization_data, dropout, is_training, out_n
                 bi = tf.zeros_initializer()
                 gi = tf.ones_initializer()
                 normalization_data['nd'].append(None)
+                
+            # print("layer name:", layer_name)
 
             fc = tf.layers.batch_normalization(fc, training = is_training, name = layer_name, moving_mean_initializer = mmi, \
                 moving_variance_initializer = mvi, gamma_initializer = gi, beta_initializer = bi)
@@ -277,40 +282,23 @@ def weights_change_summary():
 
     return tf.summary.merge(l)
 
-    
 # initialize train data
-train_data_mixed = np.genfromtxt("features.csv", delimiter = ',')
-
-train_data = []
-
-train_data.append(train_data_mixed[train_data_mixed[:, 1] == 0])
-train_data.append(train_data_mixed[train_data_mixed[:, 1] == 1])
-
-print(train_data)
-
-if args.shuffled:
-    all_files = []
-    for i in range(n_classes):
-        all_files.extend(train_data[i])
-    random.seed(0)
-    random.shuffle(all_files)
-    train_data = []
+train_data = np.genfromtxt("features.csv", delimiter = ',')
     
-    index = 0
-    per_class = int(len(all_files) / n_classes)
-    for i in range(n_classes):    
-        last_index = index + per_class
-        if i == n_classes - 1:
-            last_index = len(all_files)
-        train_data.append(all_files[index:last_index]) 
-        index = last_index
+gender_weights = []
+for i in range(2):
+    gender_weights.append(len(train_data[train_data[:, 2] == i])) 
+    
+gender_weights = 1.0 / (np.array(gender_weights, dtype = np.float) / len(train_data))
+gender_weights = gender_weights / np.sum(gender_weights) 
+    
+print("gender weights:", gender_weights)    
     
 cross_validation_chunks = 10
 test_amount = 0
 
-max_train_amount = len(max(train_data, key = len))        
+max_train_amount = len(train_data)        
 #max_test_amount = int(max_train_amount / cross_validation_chunks)
-
     
 print('processing train input')
 data_per_class = max_train_amount 
@@ -318,44 +306,32 @@ print('data per class:', data_per_class)
 
 train_cv_data = []
 train_cv_data_lengths = []
-for d in train_data:
-    test_amount = int(len(d) / cross_validation_chunks) 
-    cv_d = np.concatenate((d[:int(args.test_chunk * test_amount)], d[int((args.test_chunk + 1) * test_amount):]))
+test_amount = float(len(train_data)) / cross_validation_chunks
 
-    train_cv_data_lengths.append(len(cv_d))        
-        
-    #print(cv_d.shape)    
-    #print(np.tile([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], ((data_per_class - len(cv_d)), 1)).shape)   
-        
-    #print(np.repeat([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], (data_per_class - len(cv_d))))
-    
-        
-    if len(cv_d) < data_per_class:
-        cv_d = np.concatenate((cv_d, np.tile([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], ((data_per_class - len(cv_d)), 1))))
-             
-    print('train data:', cv_d)
-    #print(len(cv_d))
-        
-    train_cv_data.append(cv_d)    
+print(train_data.shape)
 
+cv_d = np.concatenate((train_data[:int(args.test_chunk * test_amount), :], train_data[int((args.test_chunk + 1) * test_amount):, :]))
+
+#print(cv_d)
+
+train_cv_data_lengths.append(len(cv_d))        
+        
+train_cv_data = cv_d    
+
+train_amount = len(train_cv_data)
    
 test_cv_data = []
-   
-for d in train_data:    
 
-    test_amount = int(len(d) / cross_validation_chunks) 
-
-    print('test amount:', test_amount)                
+print('test amount:', test_amount)                
     
-    cv_data = d[int(args.test_chunk * test_amount):int((args.test_chunk + 1) * test_amount)]
+cv_data = train_data[int(args.test_chunk * test_amount):int((args.test_chunk + 1) * test_amount)]
     
-    print('test data:', cv_data)
+print('test data:', cv_data)
     
-    test_cv_data.append(cv_data)
-    
+test_cv_data = cv_data
     
 # input generator
-def input_data(is_test_data, test_chunk_index, test_class = 0):
+def input_data(is_test_data):
     
     global test_cv_data, train_cv_data, train_cv_data_lengths, max_train_amount
     
@@ -370,27 +346,15 @@ def input_data(is_test_data, test_chunk_index, test_class = 0):
             
         cv_data_lengths = tf.constant(np.asarray(train_cv_data_lengths), dtype = tf.int32)    
     
-        range_queue = tf.train.range_input_producer(max_train_amount * n_classes, shuffle = True)
+        range_queue = tf.train.range_input_producer(data_len, shuffle = True)
     
         value = range_queue.dequeue()
-    
-        #class_value = tf.Print(class_value, [class_value], message = "class value: ")
-        #file_value = tf.Print(file_value, [file_value], message = "file value: ")
-
-        class_index = tf.div(value, tf.constant(max_train_amount))
-
-        #class_index = tf.Print(class_index, [class_index], message = "class index: ")
-    
-        filenames = tf.gather(cv_data, class_index)
-        amount = tf.gather(cv_data_lengths, class_index)
-    
-        file_index = tf.mod(value, amount)
-    
-        data = tf.gather(filenames, file_index)
+        
+        data = tf.gather(cv_data, value)
 
     else:
     
-        cv_data = test_cv_data[test_class]
+        cv_data = test_cv_data
 
         data_len = len(cv_data)        
         cv_data = tf.constant(np.asarray(cv_data))    
@@ -399,39 +363,61 @@ def input_data(is_test_data, test_chunk_index, test_class = 0):
         
         range_queue = tf.train.range_input_producer(data_len, shuffle = False, num_epochs = 1)
     
-        file_index = range_queue.dequeue()
+        value = range_queue.dequeue()
+                    
+        data = tf.gather(cv_data, value)
+       
+
+    gender =  tf.reshape(tf.gather(data, tf.constant(2)), [-1])
+
+    if args.hugo_features:
+        start_index = 6
+    else:
+        start_index = 3
+
+    data = tf.slice(data, [start_index], [n_input])   
+       
+    # features array -> gender
+       
+    data = tf.cast(data, tf.float32)
+    gender = tf.cast(gender, tf.float32)
         
-        #file_index = tf.Print(file_index, [file_index], message = "file index: ")        
+    if is_test_data:
+    
+        allow_smaller_final_batch = True    
+        bs = eval_batch_size
         
-        class_index = tf.constant(test_class)
-    
-        data = tf.gather(cv_data, file_index)
-    
-    gender =  tf.reshape(tf.gather(data, tf.constant(1)), [-1])
-    data = tf.slice(data, [2], [n_input])   
-            
-    return data, tf.cast(gender, tf.float32), data_len   
+    else:
 
+        allow_smaller_final_batch = False   
+        bs = batch_size
+        
+    data.set_shape([n_input])
 
-x, y, _ = input_data(False, 0)
+    if n_classes == 2:
+        n_outputs = 1
+    else:
+        n_outputs = n_classes
+    gender.set_shape([n_outputs])
+        
+    # makes a queue!    
+    x_batch, y_batch = tf.train.batch([data, gender], batch_size = bs, capacity = 1000, allow_smaller_final_batch = allow_smaller_final_batch)
+        
+    return x_batch, y_batch, data_len, range_queue
 
-x.set_shape([n_input])
-
-if n_classes == 2:
-    n_outputs = 1
-else:
-    n_outputs = n_classes
-y.set_shape([n_outputs])
-
-#y = tf.reshape(y, [n_classes])
-
-x_batch, y_batch = tf.train.batch([x, y], batch_size = batch_size)
+x_batch, y_batch, _, _ = input_data(False)
 
 # Construct model
-pred = conv_net(x_batch_ph, weights, biases, normalization_data, dropout_ph, is_training_ph)
+pred = conv_net(x_batch, weights, biases, normalization_data, dropout, True)
 
 # Define loss and optimizer
-loss = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits = pred, labels = y_batch_ph))
+
+# https://stackoverflow.com/questions/43564490/how-correctly-calculate-tf-nn-weighted-cross-entropy-with-logits-pos-weight-vari
+# the stored weights are inversed!
+
+pos_weight = gender_weights[1] / gender_weights[0]
+
+loss = tf.reduce_mean(tf.nn.weighted_cross_entropy_with_logits(logits = pred, targets = y_batch, pos_weight = pos_weight))
 
 # L2 regularization for the fully connected parameters.
 
@@ -478,19 +464,6 @@ with tf.control_dependencies(update_ops):
 
 #optimizer = tf.train.AdamOptimizer(learning_rate = learning_rate).minimize(cost)
 
-# Define evaluation pipeline
-
-def test_input(test_class):
-    x1, y1, total = input_data(True, args.test_chunk, test_class)
-    x1.set_shape([n_input])
-    if n_classes == 2:
-        n_outputs = 1
-    else:
-        n_outputs = n_classes
-    y1.set_shape([n_outputs])
-    x1_batch, y1_batch = tf.train.batch([x1, y1], batch_size = eval_batch_size, allow_smaller_final_batch = True)
-    return (x1_batch, y1_batch, total)
-    
     
 #pred1 = conv_net(x1_batch, weights, biases, normalization_data, dropout_ph, is_training_ph)
 
@@ -504,8 +477,8 @@ def test_input(test_class):
 #accuracy = tf.reduce_mean(tf.cast(correct_pred, tf.float32)) 
 
 
-pred_int = tf.rint(tf.sigmoid(pred_batch_ph))
-correct_pred = tf.equal(pred_int, tf.rint(y_batch_ph))
+pred_int = tf.rint(tf.sigmoid(pred))
+correct_pred = tf.equal(pred_int, tf.rint(y_batch))
 accuracy = tf.reduce_mean(tf.cast(correct_pred, tf.float32))
 
 
@@ -528,19 +501,21 @@ zeros_accuracy = tf.divide(tf.cast(correct_zeros, tf.float32), zeros)
 #correct_pred = tf.equal(tf.rint(tf.sigmoid(pred_batch_ph)), y_batch_ph)
 #accuracy = tf.reduce_mean(tf.cast(correct_pred, tf.float32))
 
-#grid = tf_visualization.put_averaged_kernels_on_color_grid (weights['wc2'], grid_Y = 8, grid_X = 8)
-#grid = tf_visualization.put_fully_connected_on_grid (weights['wd1'], grid_Y = 25, grid_X = 25)
-
 # the end of graph construction
 
 #sess = tf.Session(config = tf.ConfigProto(operation_timeout_in_ms = 200000, inter_op_parallelism_threads = 1000, intra_op_parallelism_threads = 1))
-sess = tf.Session()
+if args.classify:
+    config = tf.ConfigProto(device_count = {'GPU': 0})
+    sess = tf.Session(config = config)
+else:
+    sess = tf.Session()
+
 
 train_writer = tf.summary.FileWriter('./train',  sess.graph)
 
 # todo : print out 'batch loss'
 
-iterations = max(1, int(train_amount / batch_size)) * epochs
+iterations = max(1, int((train_amount * epochs + batch_size - 1) / batch_size))
 
 const_summaries = []
 
@@ -626,7 +601,12 @@ loss_value = 0
 cost_value = 0
 train_accuracy_value = -1
 
-
+def append_rows(source, appended):
+    if len(source) == 0:
+        source = appended
+    else:
+        source = np.append(source, appended, axis = 0)                      
+    return source
 
 def calc_test_accuracy():
 
@@ -636,62 +616,181 @@ def calc_test_accuracy():
 
     print("evaluating test data...")
 
-    test_sess = tf.Session()
-    
-    test_batches = []
-    
-    with test_sess.as_default():
+    with tf.Graph().as_default() as graph:
 
-        try:
+        tf.set_random_seed(0)
     
-            for n in range(n_classes):    
-                x1_batch, y1_batch, test_amount = test_input(n)       
-                test_batches.append((x1_batch, y1_batch, test_amount))
+        if args.classify:
+            config = tf.ConfigProto(device_count = {'GPU': 0})
+            test_sess = tf.Session(graph = graph, config = config)
+        else:
+            test_sess = tf.Session(graph = graph)
         
-            test_init = tf.group(tf.global_variables_initializer(), tf.local_variables_initializer())
+        with test_sess.as_default():
 
-            test_sess.run(test_init)
-            
-            test_coord = tf.train.Coordinator()
-
-            tf.train.start_queue_runners(sess = test_sess, coord = test_coord)
-            
-            for n in range(n_classes):
-            
-                x1_batch, y1_batch, test_amount = test_batches[n]
+            try:
                 
+                
+                x1_batch, y1_batch, test_amount, q = input_data(True)
+                                                          
+                # create test net
+                
+                print("creating testing net from scratch")
+                
+                test_biases = {
+                    'bc': [],
+                    'bd': [],
+                    'out': None
+                }
+
+                test_weights = {
+                    'wc': [],
+                    'wd': [],
+                    'out': None
+                }
+
+                test_normalization_data = {
+                    'nc': [],
+                    'nd': []
+                }
+                
+                for bd in biases['bd']:
+                    w = sess.run(bd)
+                    test_biases['bd'].append(w)
+                    
+                w = sess.run(biases['out'])
+                test_biases['out'] = w
+                
+                for wd in weights['wd']:
+                    w = sess.run(wd)
+                    test_weights['wd'].append(w)
+                    
+                w = sess.run(weights['out'])
+                test_weights['out'] = w
+
+                for nd in normalization_data['nd']:
+                    nd1 = sess.run(nd)
+                    #print(nd1)
+                    test_normalization_data['nd'].append(nd1)
+
+                test_pred = tf.rint(tf.sigmoid(conv_net(x1_batch, test_weights, test_biases, test_normalization_data, 0.0, False)))
+
+                print("done")
+                
+                test_init = tf.group(tf.global_variables_initializer(), tf.local_variables_initializer())
+                # test_init = tf.local_variables_initializer()
+
+                test_sess.run(test_init)
+                
+                test_coord = tf.train.Coordinator()
+
+                threads = tf.train.start_queue_runners(sess = test_sess, coord = test_coord)
+                                         
                 #print("test amount:", test_amount)
-                
+                    
                 batch_number = int((test_amount + eval_batch_size - 1) / eval_batch_size)
+                    
+                total_correct_ones = 0
+                total_correct_zeros = 0
+                total_ones = 0
+                total_zeros = 0
+
+                predictions = []
                 
-                acc_sum = 0.0
                 for i in range(batch_number):
-                    
-                    x, y = test_sess.run([x1_batch, y1_batch])
-                    
+                                                
+                    p, y = test_sess.run([test_pred, y1_batch])
+
                     print('batch size:', len(y))
                     
-                    p = sess.run(pred, feed_dict = { dropout_ph: 0.0, is_training_ph: False, x_batch_ph: x } )
-                    acc = sess.run(accuracy, feed_dict = { pred_batch_ph : p, y_batch_ph : y } )                       
-                    acc_sum = acc_sum + acc * len(y)
+                    #print(x)
+                    #print(p)
                     
-                class_accuracies[n] = acc_sum / test_amount
+                    #p = sess.run(cast_to_int, feed_dict = { pred_batch_ph : p})
+                    
+                    y = y.astype(np.int)
+                    
+                    #print(p)
+                    
+                    ones = np.sum(y)
+                    total = y.size
+                    zeros = total - ones
+                    p = p > 0
+                    y = y > 0
+                    correct_ones = np.sum((np.logical_and(p, y)).astype(np.int))
+                    correct_zeros = np.sum((np.logical_not(np.logical_or(p, y))).astype(np.int))
+                    
+                    total_ones += ones
+                    total_zeros += zeros
+                    total_correct_ones += correct_ones
+                    total_correct_zeros += correct_zeros
+                    
+                    predictions = append_rows(predictions, p.astype(np.int))
+                        
+                    
+                print("total ones:", total_ones)   
+                print("total zeros:", total_zeros)   
+                    
+                total_classes = 0
                 
-                print(class_accuracies[n])
+                if total_ones > 0:
+                    ma = float(total_correct_ones) / total_ones
+                    total_classes += 1
+                else:
+                    ma = 0
+                    
+                print('male accuracy:', ma)
 
-            test_coord.request_stop()
-            test_coord.join()
+                if total_zeros > 0:
+                    fa = float(total_correct_zeros) / total_zeros
+                    total_classes += 1
+                else:
+                    fa = 0
+                    
+                print('female accuracy:', fa)
+                
+                a = (fa + ma) / total_classes
+                print('accuracy:', a)
 
-            test_sess.close()
-        except Exception as e:
+                test_coord.request_stop()
+
+                test_sess.run(q.close(cancel_pending_enqueues = True))
+                
+                test_coord.join(stop_grace_period_secs = 5)
+                
+                #tf.Session.reset("", ["testqueues2"])
+                    
+                test_sess.close()   
+                
+                if args.classify:
+                
+                    f = open("features2gender_fileid_recid_origgender_predgender.csv", 'a+')            
+                    
+                    for i in range(len(test_cv_data)):                    
+                        tcvd = test_cv_data[i]                    
+                        csv_line = '';
+                        csv_line += str(int(tcvd[0])) + ","                        
+                        csv_line += str(int(tcvd[1])) + ","
+                        csv_line += str(int(tcvd[2])) + ","
+                        csv_line += str(predictions[i][0]) + ""                        
+                        print(csv_line, file = f)
+                        
+                    f.close()                                    
+                
+                
+            except Exception as e:
+                
+                print('exception in calc_test_acuracy:', traceback.print_exc(file = sys.stdout))
+                
+            accuracy_value = a
+            class_accuracies[0] = fa
+            class_accuracies[1] = ma
             
-            print('exception in calc_test_acuracy:', traceback.print_exc(file = sys.stdout))
-            
-        accuracy_value = np.mean(class_accuracies)
+            #print("class accuracies:", class_accuracies)
 
-def calc_train_accuracy(pred, y):
+
+def calc_train_accuracy(acc):
     global train_accuracy_value
-    acc = sess.run(accuracy, feed_dict = { pred_batch_ph : pred, y_batch_ph : y } )
     alpha = 0.1
     if train_accuracy_value < 0:
         train_accuracy_value = acc
@@ -706,10 +805,9 @@ def display_info(iteration, total):
     global loss_value
     global cost_value
 
-    batches_per_epoch = train_amount / batch_size
-    epoch = int(iteration / batches_per_epoch)
+    epoch = int((iteration * batch_size) / train_amount)
     done = int((iteration * 100) / total)
-    batch = int(iteration % batches_per_epoch);
+    batch = iteration
 
     print(str(done) + "% done" + ", epoch " + str(epoch) + ", batches: " + str(batch) + ", loss: " + "{:.9f}".format(loss_value) +  ", cost: " + "{:.9f}".format(cost_value) + ", train acc.: " + str(train_accuracy_value) + ", test acc.: " + str(accuracy_value))
 
@@ -731,14 +829,14 @@ def write_summaries():
 
 for i in range(iterations):
 
-    x, y = sess.run([x_batch, y_batch], feed_dict = { dropout_ph: dropout } )
-
     if i % summary_interval == 0:
         calc_test_accuracy()
+        if args.classify:
+            sys.exit() 
+        
+    _, loss_value, cost_value, a = sess.run([optimizer, loss, cost, accuracy])
 
-    _, loss_value, cost_value, p = sess.run([optimizer, loss, cost, pred], feed_dict = { x_batch_ph: x, y_batch_ph : y, dropout_ph: dropout, is_training_ph: True } )
-
-    calc_train_accuracy(p, y)
+    calc_train_accuracy(a)
 
     if i % summary_interval == 0:
         display_info(i, iterations)

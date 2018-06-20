@@ -226,7 +226,7 @@ def augment(gray8):
 
     return resized
 
-def prepare(gray8, do_augment):
+def prepare(gray8, do_augment, dont_keep_aspect = False):
 
     global _i
 
@@ -294,19 +294,25 @@ def prepare(gray8, do_augment):
 
     shape = gray8.shape
 
-    resized = numpy.zeros((233, 100), dtype = numpy.float32)
-
-    max_width = min(shape[1], 100)
-
-    resized[0:233, 0:max_width] = gray8[:, 0:max_width]
-
+    if dont_keep_aspect:
+        
+        # resize rescales the image if it's not uint8!
+        gray8 = gray8.astype(numpy.uint8)
+        resized = scipy.misc.imresize(gray8, (image_height, image_width), interp='bicubic')
+        
+    else:
     
+    
+        resized = numpy.zeros((233, 100), dtype = numpy.float32)
 
+        max_width = min(shape[1], 100)
 
-    # resize rescales the image if it's not uint8!
+        resized[0:233, 0:max_width] = gray8[:, 0:max_width]
 
-    resized = resized.astype(numpy.uint8)
-    resized = scipy.misc.imresize(resized, (image_height, image_width), interp='nearest')
+        # resize rescales the image if it's not uint8!
+
+        resized = resized.astype(numpy.uint8)
+        resized = scipy.misc.imresize(resized, (image_height, image_width), interp='nearest')
 
     '''
     if do_augment:

@@ -150,7 +150,6 @@ for s in folders:
     csv_line = '';
     for a in breaks_accuracies:
         csv_line += str(a) + ','
-    csv_line = csv_line[:-1]
     csv_line += str(breaks_accuracy)
     print(csv_line, file = f)
     f.close()                

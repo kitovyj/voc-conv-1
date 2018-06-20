@@ -75,6 +75,8 @@ def load_summary_file(summary_file):
    features = []
    strides = []
    max_pooling = []
+
+   last_batch = 0
    
    ge = tf.train.summary_iterator(summary_file)
 
@@ -199,6 +201,8 @@ def load_summary_file(summary_file):
                    num = int(split[0][2:])
                    n = tensor_summary_value_to_numpy(v)
                    normalization_data['nd'][num - 1][3] = n
+                elif v.node_name == 'batch_number':
+                    last_batch = int(v.simple_value)
                 else:
                    loaded = False
 
@@ -214,7 +218,7 @@ def load_summary_file(summary_file):
    e = None
    ge = None
 
-   return weights, biases, normalization_data, kernel_sizes, features, strides, max_pooling, fc_sizes, original_weights, original_biases
+   return weights, biases, normalization_data, kernel_sizes, features, strides, max_pooling, fc_sizes, original_weights, original_biases, last_batch
 
 
 def save_weights(weights, biases, postfix):
