@@ -11,6 +11,7 @@ import scipy.misc
 from scipy.ndimage import zoom
 import skimage
 import math
+import cv2
 
 def rgb2gray(rgb):
     return numpy.dot(rgb[...,:3], [0.299, 0.587, 0.114])
@@ -186,71 +187,77 @@ def crop_around_center(image, width, height):
 
     return image[y1:y2, x1:x2]
 
-def augment(gray8):
-
-#    gray8 = numpy.squeeze(gray8)
-    return np.asarray(gray8.astype(np.float32))
-
-    print('augment')
-
-    image_width = 100
-    image_height = 100
-
-    # add noise
-
-    # gray8 = skimage.util.random_noise(gray8, mode = 's&p')
-    gray8 = skimage.util.random_noise(gray8, mode = 'gaussian')
-
-    # augment volume
-
-    rc = random_color_aug_coeff()
-
-    gray8 = gray8.astype(np.float32)
-    gray8[:] *= rc
-
-    shape = gray8.shape
-
-    resized = numpy.zeros((233, 100), dtype = np.float32)
-
-    max_width = min(shape[1], 100)
-
-    resized[0:233, 0:max_width] = gray8[:, 0:max_width]
-
-    resized = scipy.misc.imresize(resized, (image_width, image_height), interp='nearest')
-
-    #resized = resized[:, None]
-
-    resized = np.asarray(resized)
-
-    print('augment1')
-
-    return resized
-
-def prepare(gray8, do_augment, dont_keep_aspect = False):
+_i = 0
+    
+def augment(gray8, do_augment, dont_keep_aspect = False):
 
     global _i
-
+    
+    #print(max(gray8[:, : , 0]))
+    #print(max(gray8[:, : , 1]))
+    #print(max(gray8[:, : , 2]))
+    
+    #original = gray8[:, : , 0]
+    
+    gray8 = gray8[:, : , 0]
+    
+    '''
+    f = open("out.txt", 'a+')   
+    f.write(str(gray8.shape))
+    f.close()
+    '''
+    
     #time.sleep(1.0)
 
     #return numpy.asarray(gray8.astype(numpy.float32))
 
     #return gray8
-
     #print('augment')
 
     gray8 = numpy.squeeze(gray8)
-
-    image_width = 100
-    image_height = 100
 
     if do_augment:
 
        # gray8 = skimage.util.random_noise(gray8, mode = 's&p')
 
-
        gray8 = gray8.astype(numpy.float32)
 
-       gray8 /= 255.
+       
+       # vert crop and rot
+       '''
+       image_height, image_width = gray8.shape[0:2]       
+
+       rot_range = 10.0
+       rot = rot_range - 2 * rot_range * random.random();
+
+       if abs(rot) < 2.0:
+           max_crop = 0.1
+       else:
+           max_crop = 0.05
+           
+       top_cr = random.randint(0, int(image_height*max_crop))
+       bottom_cr = random.randint(0, int(image_height*max_crop))
+
+       gray8 = gray8[top_cr:(image_height - bottom_cr), :]
+
+       # rotate
+
+       image_height, image_width = gray8.shape[0:2]
+       
+       if image_width > 30:
+           gray8 = rotate_image(gray8, rot)
+           #rgb = scipy.ndimage.rotate(rgb, rot)
+
+           gray8 = crop_around_center(gray8, *largest_rotated_rect(image_width, image_height, math.radians(rot)))       
+       
+       '''
+       
+       # v c & r end
+
+       image_width = 299
+       image_height = 299
+       
+       # gray8 /= 255.
 
        max_pad_coeff = 0.1
        max_pad = int(gray8.shape[1] * max_pad_coeff)
@@ -258,60 +265,50 @@ def prepare(gray8, do_augment, dont_keep_aspect = False):
        padded = numpy.zeros((gray8.shape[0], gray8.shape[1] + 2*max_pad), dtype = gray8.dtype)
 
        # converts to float
-       padded = skimage.util.random_noise(padded, mode = 'gaussian', var = 0.01)
-
+       padded = skimage.util.random_noise(padded, mode = 'gaussian', var = 0.01)       
        padded[:, max_pad:(max_pad + gray8.shape[1])] = gray8
 
+       #original = padded*255       
+       
        gray8 = padded
-
+       
        left = int((random.random() * 1 * max_pad))
        right = gray8.shape[1] - int((random.random() * 1 * max_pad))
-
        gray8 = gray8[:, left:right]
-
+       
        # change volume
-
        rc = random_color_aug_coeff()
-
        gray8 *= rc
-
        gray8[gray8 > 1.0] = 1.0
 
        # add noise
 
        # converts to 0..1, float
-
        gray8 = skimage.util.random_noise(gray8, mode = 'gaussian', var = 0.01 * random.random())
-
        gray8[gray8 > 1.0] = 1.0
-
        gray8 *= 255
 
     else:
 
+       image_width = 299
+       image_height = 299
+    
        gray8 = gray8.astype(numpy.float32)
+       gray8 *= 255
 
 
     shape = gray8.shape
 
     if dont_keep_aspect:
-        
         # resize rescales the image if it's not uint8!
         gray8 = gray8.astype(numpy.uint8)
         resized = scipy.misc.imresize(gray8, (image_height, image_width), interp='bicubic')
-        
     else:
-    
-        max_duration = 300
-    
-        resized = numpy.zeros((233, max_duration), dtype = numpy.float32)
-
+        max_duration = 299
+        resized = numpy.zeros((gray8.shape[0], max_duration), dtype = numpy.float32)
         max_width = min(shape[1], max_duration)
-
-        resized[0:233, 0:max_width] = gray8[:, 0:max_width]
-
+        resized[:, 0:max_width] = gray8[:, 0:max_width]
         # resize rescales the image if it's not uint8!
-
         resized = resized.astype(numpy.uint8)
         resized = scipy.misc.imresize(resized, (image_height, image_width), interp = 'bilinear')
 
@@ -323,9 +320,13 @@ def prepare(gray8, do_augment, dont_keep_aspect = False):
     _i = _i + 1
     if _i > 20:
        _i = 0
-    u8 = resized.astype(numpy.uint8)
+    u8 = resized
+    #u8 = original    
+    u8 = u8.astype(numpy.uint8)
+    
     scipy.misc.toimage(u8).save(fn + str(_i) + '.png')
     '''
+    
 
     #print(resized.shape)
 
@@ -335,12 +336,20 @@ def prepare(gray8, do_augment, dont_keep_aspect = False):
 
     #return gray8
 
+    
+    gray8 /= 255
+    gray8[gray8 > 1.0] = 1.0
+    
     resized = resized.astype(numpy.float32)
-    resized = resized - resized.mean()
+    
+
+    # to rgb
+    resized = np.stack((resized,)*3, axis = -1) 
+
     
     #print(resized.shape)
     
-    resized = resized[:, None]
+    #resized = resized[:, None]
 
     #print(resized.shape)
     

@@ -22,9 +22,10 @@ folders = sorted(glob.glob(args.cv_folder + '/*/'))
 
 out_file = "DNN_Raw2Recording_Real.csv"
 
-total_recordings = 17
 total_female = 9
 total_male = 8
+
+total_recordings = total_female + total_male
 
 f = open(out_file, 'w+')
 csv_line = '';
@@ -42,7 +43,7 @@ f.close()
 
 for s in folders:
 
-    fn = os.path.join(s, "pretrained-1.tfevents")
+    fn = os.path.join(s, "pretrained-2.tfevents")
     
     accuracy = 0
     accuracies = [0 for i in range(total_male + total_female)]

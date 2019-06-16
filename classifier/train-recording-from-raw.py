@@ -491,12 +491,14 @@ test_cv_data = np.vstack(test_cv_data)
 train_amount = len(train_cv_data)       
 test_amount = len(test_cv_data)       
 
+print('total train amount:', train_amount)
+print('total test amount:', test_amount)
 
 
 output_weights = []
 for i in range(n_classes):
-    output_weights.append(len(train_cv_data[train_cv_data[:, 1] == (i + 1)])) 
-output_weights = 1.0 / (np.array(output__weights, dtype = np.float) / len(train_cv_data))
+    output_weights.append(len(train_cv_data[train_cv_data[:, 1] == i]))
+output_weights = 1.0 / (np.array(output_weights, dtype = np.float) / len(train_cv_data))
 output_weights = output_weights / np.sum(output_weights) 
     
 print("output weights:", output_weights)    
@@ -541,7 +543,7 @@ def input_data(is_test_data):
     file_id_str = tf.as_string(tf.cast(file_id, tf.int32), width = 9, fill = '0')
     png_file_name = tf.squeeze(tf.string_join([tf.constant(data_path), tf.constant("data"), file_id_str, tf.constant('r.png')]))
     
-    label = tf.squeeze(tf.one_hot(tf.cast(tf.gather(data, tf.constant(1)), tf.int32), 17))
+    label = tf.squeeze(tf.one_hot(tf.cast(tf.gather(data, tf.constant(1)), tf.int32), n_classes))
         
     png_data = tf.read_file(png_file_name)
     data = tf.image.decode_png(png_data)
@@ -583,7 +585,7 @@ x_batch, y_batch, _, _ = input_data(False)
 pred = conv_net(x_batch, weights, biases, normalization_data, dropout, True)
 
 output_weights_tf = tf.constant(np.expand_dims(output_weights, axis = 0), dtype = tf.float32)
-unweighted_output_loss = tf.nn.softmax_cross_entropy_with_logits(logits = output_pred, labels = y_batch)
+unweighted_output_loss = tf.nn.softmax_cross_entropy_with_logits(logits = pred, labels = y_batch)
 loss = tf.reduce_mean(unweighted_output_loss * tf.reduce_sum(output_weights_tf * y_batch, axis = 1))
 
 # L2 regularization for the fully connected parameters.
@@ -843,8 +845,8 @@ def calc_test_accuracy():
                     #print(nd1)
                     test_normalization_data['nc'].append(nc1)
                     
-                test_pred = tf.rint(tf.sigmoid(conv_net(x1_batch, test_weights, test_biases, test_normalization_data, 0.0, False)))
-
+                test_pred = conv_net(x1_batch, test_weights, test_biases, test_normalization_data, 0.0, False)
+                
                 print("done")
                 
                 test_init = tf.group(tf.global_variables_initializer(), tf.local_variables_initializer())
@@ -873,11 +875,11 @@ def calc_test_accuracy():
                                                 
                     p, y = test_sess.run([test_pred, y1_batch])
                     
-                    predictions = append_rows(predictions, p.astype(np.int))
+                    predictions = append_rows(predictions, p)
                     labels = append_rows(labels, y)
                     
                 labels = np.argmax(labels, axis = 1)
-                predictions = np.argmax(predictions, axis = 1)
+                predictions = np.argmax(predictions, axis = 1).astype(np.int)
                 
                 for j in range(n_classes):
                     w = np.argwhere(labels == j)
@@ -896,7 +898,7 @@ def calc_test_accuracy():
                 
                 if args.classify:
                 
-                    f = open("raw2gender_fileid_recid_origgender_predgender.csv", 'a+')            
+                    f = open("raw2recording_fileid_recid_origgender_predrecid.csv", 'a+')            
                     
                     for i in range(len(test_cv_data)):                    
                         tcvd = test_cv_data[i]                    
@@ -904,7 +906,7 @@ def calc_test_accuracy():
                         csv_line += str(int(tcvd[0])) + ","                        
                         csv_line += str(int(tcvd[1])) + ","
                         csv_line += str(int(tcvd[2])) + ","
-                        csv_line += str(predictions[i][0]) + ""                        
+                        csv_line += str(predictions[i]) + ""                        
                         print(csv_line, file = f)
                         
                     f.close()                                    

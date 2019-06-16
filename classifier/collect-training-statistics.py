@@ -14,7 +14,7 @@ import traceback
 
 parser = argparse.ArgumentParser()
 
-parser.add_argument('--cv-folder', dest = 'cv_folder', default = './train/cv/', help = 'the cv folder to get the data from')
+parser.add_argument('--cv-folder', dest = 'cv_folder', default = './train/cv-raw-to-gender/6-cv-layers-3-stages-proper-shuffling/0/', help = 'the cv folder to get the data from')
 
 args = parser.parse_args()
 
@@ -27,52 +27,34 @@ csv_line += '"Performance",'
 csv_line += '"Weight change(abs)"'
 print(csv_line, file = f)
 f.close()                
-
-fn = os.path.join(args.cv_folder, "pretrained.tfevents")
     
 accuracies = []
-weight_change = []
+weight_change = [0]
 batches = []
-current_batch = 0
 
-for e in tf.train.summary_iterator(fn):
-    for v in e.summary.value:
-        if v.tag == "accuracy":
-            accuracies.append(v.simple_value)
-            batches.append(current_batch)
-            current_batch += 51
-        elif  v.tag == "wca1":
-            weight_change.append(v.simple_value)
+file_names = ["pretrained.tfevents", "pretrained-1.tfevents", "pretrained-2.tfevents"]
 
-            
+for fn in file_names:
 
-fn = os.path.join(args.cv_folder, "pretrained-1.tfevents")
+    fn = os.path.join(args.cv_folder, fn)
 
-# 5202
-# skip duplicate
-
-current_batch -= 51
-del batches[-1]
-del weight_change[-1]
-del accuracies[-1]
-
-for e in tf.train.summary_iterator(fn):
-    for v in e.summary.value:
-        if v.tag == "accuracy":
-            accuracies.append(v.simple_value)
-            batches.append(current_batch)
-            current_batch += 34
-        elif  v.tag == "wca1":
-            weight_change.append(v.simple_value)
-
-            
+    for e in tf.train.summary_iterator(fn):
+        for v in e.summary.value:
+            if v.tag == "accuracy":
+                accuracies.append(v.simple_value)
+            elif  v.tag == "wca1":
+                weight_change.append(v.simple_value)
+            elif v.tag == "batch_number":
+                batches.append(v.simple_value)
+                
+                        
 f = open(out_file, 'a+')
 
 for i in range(len(batches)):
 
     csv_line = '';
 
-    csv_line += str(batches[i]) + ','
+    csv_line += str(int(batches[i])) + ','
     csv_line += str(accuracies[i]) + ','
     csv_line += str(weight_change[i])
 
